@@ -7,4 +7,6 @@ Press is a rewrite of PowerCD with some modern decisions:
 1. Embrace devmoji but still support conventional commits
 1. Expand to github releases, changelog support, artifacts, etc.
 
+See the project section for the roadmap
+
 More to follow...
