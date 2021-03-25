@@ -9,7 +9,23 @@ $commonParams = @{
 }
 
 Task Press.Init {
+    #TODO: Make this faster by not relying on PSGetv2
+    @('PSDepend').foreach{
+        try {
+            Import-Module $PSItem -Global
+        } catch [IO.FileNotFoundException] {
+            if ($PSItem.FullyQualifiedErrorId -ne 'Modules_ModuleNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand') {
+                throw $PSItem
+            }
+            Install-Module -Scope CurrentUser -Force PSDepend
+        }
+    }
+    Invoke-PSDepend -Path $PSScriptRoot/.config -Force
+
+    #TODO: Fix the module scoping of this and make functions not dependent on state
     $GLOBAL:PressSetting = Get-PressSetting
+
+
 }
 
 Task Press.Version {

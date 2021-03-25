@@ -5,7 +5,7 @@ Fetch the names of public functions in the specified folder using AST
 This is a better method than grabbing the names of the .ps1 file and "hoping" they line up.
 This also only gets parent functions, child functions need not apply
 #>
-
+#TODO: Better Function handling: Require function to be the same name as the file. Accessory private functions are OK.
 function Get-PublicFunctions {
     [CmdletBinding()]
     param(

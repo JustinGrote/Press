@@ -1,0 +1,77 @@
+name: Press Build
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - ci
+      - production
+  pull_request:
+    branches:
+      - master
+      - main
+      - production
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-18.04
+          - ubuntu-16.04
+          - windows-2019
+          - windows-2016
+          - macos-11.0
+          - macos-10.15
+        #TODO: Pester test with this path
+        # psversion:
+        #   - pwsh
+        #   - powershell
+        # exclude:
+        #   - os: ubuntu-18.04
+        #     psversion: powershell
+        #   - os: ubuntu-16.04
+        #     psversion: powershell
+        #   - os: macOS-latest
+        #     psversion: powershell
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          # Required for GitVersion
+          #TODO: Calculate fetch depth up to the parent branch's last version tag (this is all gitversion really needs)
+          fetch-depth: 0
+      - name: Cache Powershell Modules
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/Documents/Powershell/Modules
+            ~/Documents/WindowsPowershell/Modules
+            ~/.local/share/powershell/Modules
+            ~/.local/share/Press
+            ~/AppData/Local/Press
+          key: ${{ matrix.os }}-${{ matrix.psversion }}-${{ hashFiles('Source/.config/Requirements.psd1') }}
+
+      - name: View Installed Powershell Modules
+        shell: pwsh
+        run: ($ENV:PSModulePath).split([io.path]::pathseparator) | where {Test-Path $_} | Get-ChildItem
+
+      - name: Build
+        shell: pwsh
+        run: |
+          if ('${{secrets.ACTIONS_RUNNER_DEBUG}}') {$verbosePreference = 'continue'}
+          ./build.ps1
+
+      # Workaround: https://github.com/actions/runner/issues/520#issuecomment-720508121
+      - if: always()
+        name: Get Debug Status
+        id: debugInfo
+        run: echo '::set-output name=runnerDebug::${{secrets.ACTIONS_RUNNER_DEBUG}}'
+
+      - if: always() && runner.os != 'Windows' && steps.debugInfo.outputs.runnerDebug
+        name: Debug via SSH if ACTIONS_RUNNER_DEBUG secret is set
+        uses: lhotari/action-upterm@v1

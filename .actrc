@@ -1,0 +1,4 @@
+-P ubuntu-latest=justingrote/act-pwsh
+-P ubuntu-20.04=justingrote/act-pwsh
+-P ubuntu-18.04=justingrote/act-pwsh
+-P ubuntu-16.04=justingrote/act-pwsh

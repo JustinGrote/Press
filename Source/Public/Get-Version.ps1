@@ -5,24 +5,25 @@ function Get-Version {
         [String]$ProjectPath = $PressSetting.BuildEnvironment.ProjectPath,
         [Version]$GitVersionVersion = '5.6.6'
     )
-    # $ENV:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = $true
-    # $ENV:DOTNET_NOLOGO = $true
-    #Try Skipping first run experience
-    [void](dotnet help *>&1)
 
-    try {
-        [String]$gitVersionStatus = dotnet tool install -g gitversion.tool --version $GitVersionVersion *>&1
-    } catch {
-        if ([String]$PSItem -notmatch 'is already installed') {
-            throw $PSItem.exception
+    if (-not (Test-Path "$ProjectPath/.config/dotnet-tools.json")) {
+        $dotnetNewManifestStatus = dotnet new tool-manifest
+        if ($dotnetNewManifestStatus -ne 'The template "Dotnet local tool manifest file" was created successfully.') {
+            throw "There was an error creating a dotnet tool manifest: $dotnetNewManifestStatus"
         }
+    }
+
+    [String]$dotnetToolRestoreStatus = dotnet tool restore *>&1
+    $dotnetToolMatch = "*Tool 'gitversion.tool' (version '$GitVersionVersion') was restored.*"
+    if ($dotnetToolRestoreStatus -notlike $dotnetToolMatch) {
+        throw 'GitVersion dotnet tool was not found. Ensure you have a .NET manifest'
     }
 
     #Reference Dotnet Local Tool directly rather than trying to go through .NET EXE
     #This appears to be an issue where dotnet is installed but the tools aren't added to the path for Linux
-    $GitVersionExe = "$HOME/.dotnet/tools/dotnet-gitversion"
-    $GitVersionParams = $null
-    [String[]]$GitVersionParams += '/nofetch'
+    # $GitVersionExe = "$HOME/.dotnet/tools/dotnet-gitversion"
+    $DotNetExe = "dotnet"
+    [String[]]$GitVersionParams = 'gitversion','/nofetch'
     if (-not (
             $ProjectPath -and 
             (Test-Path (
@@ -36,7 +37,7 @@ function Get-Version {
     }
 
     try {
-        $GitVersionOutput = & $GitVersionExe $GitVersionParams
+        $GitVersionOutput = & $DotNetExe @GitVersionParams
         if (-not $GitVersionOutput) { throw 'GitVersion returned no output. Are you sure it ran successfully?' }
         if ($LASTEXITCODE -ne 0) { throw "GitVersion returned exit code $LASTEXITCODE. Output:`n$GitVersionOutput" }
 
