@@ -65,6 +65,11 @@ jobs:
         run: |
           if ('${{secrets.ACTIONS_RUNNER_DEBUG}}') {$verbosePreference = 'continue'}
           ./build.ps1
+      
+      - uses: actions/upload-artifact@v2
+        with:
+          name: PSModule Zip
+          path: BuildOutput/
 
       # Workaround: https://github.com/actions/runner/issues/520#issuecomment-720508121
       - if: always()
