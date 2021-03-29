@@ -3,7 +3,7 @@ function Get-Setting {
     [CmdletBinding()]
     param (
         #Configuration Path
-        [String]$ConfigPath,
+        [Parameter(Mandatory)][String]$ConfigPath,
         #Build Output Directory Name. Defaults to Get-BuildEnvironment Default which is 'BuildOutput'
         $BuildOutput = 'BuildOutput'
     )

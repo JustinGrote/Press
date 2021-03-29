@@ -9,9 +9,9 @@ function Copy-ModuleFiles {
     [CmdletBinding()]
     param (
         #Path to the Powershell Module Manifest representing the file you wish to compile
-        $PSModuleManifest = $PressSetting.BuildEnvironment.PSModuleManifest,
+        [Parameter(Mandatory)]$PSModuleManifest,
         #Path to the build destination. This should be non-existent or deleted by Clean prior
-        $Destination = $PressSetting.BuildModuleOutput,
+        [Parameter(Mandatory)]$Destination,
         #By Default this command expects a nonexistent destination, specify this to allow for a "Dirty" copy
         [Switch]$Force,
         #By default, the build will consolidate all relevant module files into a single .psm1 file. This enables the module to load faster. Specify this if you want to instead copy the files as-is
@@ -23,7 +23,9 @@ function Copy-ModuleFiles {
         #Files that are considered for exclusion to the 'compiled' module. This excludes any files that have two periods before ps1 (e.g. .build.ps1, .tests.ps1). Uses Filesystem Filter syntax
         [String[]]$PSFileExclude = '*.*.ps1',
         #If a prerelease tag exists, the build will touch a prerelease warning file into the root of the module folder. Specify this parameter to disable this behavior.
-        [Switch]$NoPreReleaseFile
+        [Switch]$NoPreReleaseFile = (-not $PressSetting.PreRelease),
+        #Additional files to include in the folder. These will be dropped directly into the resulting module folder. Paths should be relative to the module root.
+        [String[]]$Include
     )
 
     $SourceModuleDir = Split-Path $PSModuleManifest
@@ -42,15 +44,13 @@ function Copy-ModuleFiles {
     #TODO: Use this one command and sort out the items later
     #$FilesToCopy = Get-ChildItem -Path $PSModuleManifestDirectory -Filter '*.ps*1' -Exclude '*.tests.ps1' -Recurse
 
-    $SourceManifest = Import-PowershellDataFile -Path $PSModuleManifest
+    $SourceManifest = Import-PowerShellDataFile -Path $PSModuleManifest
 
     #TODO: Allow .psm1 to be blank and generate it on-the-fly
-    if (-not $SourceManifest.RootModule) {throw "The source manifest at $PSModuleManifest does not have a RootModule specified. This is required to build the module."}
+    if (-not $SourceManifest.RootModule) { throw "The source manifest at $PSModuleManifest does not have a RootModule specified. This is required to build the module." }
     $SourceRootModulePath = Join-Path $SourceModuleDir $sourceManifest.RootModule
     $SourceRootModule = Get-Content -Raw $SourceRootModulePath
-
-    $PressSetting.ModuleManifest = $SourceManifest
-
+    
     #Cannot use Copy-Item Directly because the filtering isn't advanced enough (can't exclude)
     $SourceFiles = Get-ChildItem -Path $SourceModuleDir -Include $PSFileInclude -Exclude $PSFileExclude -File -Recurse
     if (-not $NoCompile) {
@@ -59,12 +59,12 @@ function Copy-ModuleFiles {
         #Collate the files, pulling out using lines because these have to go first
         [String[]]$UsingLines = @()
         [String]$CombinedSourceFiles = ((Get-Content -Raw $SourceFiles) -split '\r?\n' | Where-Object {
-            if ($_ -match '^using .+$') {
-                $UsingLines += $_
-                return $false
-            }
-            return $true
-        }) -join [Environment]::NewLine
+                if ($_ -match '^using .+$') {
+                    $UsingLines += $_
+                    return $false
+                }
+                return $true
+            }) -join [Environment]::NewLine
 
         #If a SourceInit region was set, inject the files there, otherwise just append to the end.
         $sourceRegionRegex = "(?s)#region $SourceRegionName.+#endregion $SourceRegionName"
@@ -79,7 +79,7 @@ function Copy-ModuleFiles {
 
         #Use a stringbuilder to piece the portions of the config back together, with using statements up-front
         [Text.StringBuilder]$OutputRootModule = ''
-        $UsingLines.trim() | Sort-Object -Unique | Foreach-Object {
+        $UsingLines.trim() | Sort-Object -Unique | ForEach-Object {
             [void]$OutputRootModule.AppendLine($PSItem)
         }
         [void]$OutputRootModule.AppendLine($SourceRootModule)
@@ -93,7 +93,7 @@ function Copy-ModuleFiles {
         #In order to get relative paths we have to be in the directory we want to be relative to
         Push-Location (Split-Path $PSModuleManifest)
 
-        $SourceFiles | Foreach-Object {
+        $SourceFiles | ForEach-Object {
             #Powershell 6+ Preferred way.
             #TODO: Enable when dropping support for building on 5.x
             #$RelativePath = [io.path]::GetRelativePath($SourceModuleDir,$PSItem.fullname)
@@ -106,8 +106,12 @@ function Copy-ModuleFiles {
             #Copy-Item doesn't automatically create directory structures when copying files vs. directories
             $DestinationPath = Join-Path $DestinationDirectory $RelativePath
             $DestinationDir = Split-Path $DestinationPath
-            if (-not (Test-Path $DestinationDir)) {New-Item -ItemType Directory $DestinationDir > $null}
-            Copy-Item -Path $PSItem -Destination $DestinationPath
+            if (-not (Test-Path $DestinationDir)) { New-Item -ItemType Directory $DestinationDir > $null }
+            $copiedItems = Copy-Item -Path $PSItem -Destination $DestinationPath -PassThru
+            #Update file timestamps for Invoke-Build Incremental Build detection
+            $copiedItems.foreach{
+                $PSItem.LastWriteTime = [DateTime]::Now
+            }
         }
 
         #Return after processing relative paths
@@ -115,20 +119,38 @@ function Copy-ModuleFiles {
     }
 
     #Output the (potentially) modified Root Module
-    $SourceRootModule | Out-File -FilePath (join-path $DestinationDirectory $SourceManifest.RootModule)
+    $SourceRootModule | Out-File -FilePath (Join-Path $DestinationDirectory $SourceManifest.RootModule)
 
     #If there is a "lib" folder, copy that as-is
-    if (Test-Path "$SourceModuleDir/lib") {
-        Write-Verbose "lib folder detected, copying entire contents"
-        Copy-Item -Recurse -Force -Path "$SourceModuleDir/lib" -Destination $DestinationDirectory
+    if (Test-Path "$SourceModuleDir\lib") {
+        Write-Verbose 'lib folder detected, copying entire contents'
+        $copiedItems = Copy-Item -Recurse -Force -Path "$SourceModuleDir\lib" -Destination $DestinationDirectory -PassThru
+        $copiedItems.foreach{
+            $PSItem.LastWriteTime = [DateTime]::Now
+        }
     }
 
     #Copy the Module Manifest
-    [String]$PressSetting.OutputModuleManifest = Copy-Item -PassThru -Path $PSModuleManifest -Destination $DestinationDirectory
-    $ENV:PressModuleManifest = $PressSetting.OutputModuleManifest
+    $OutputModuleManifest = Copy-Item -PassThru -Path $PSModuleManifest -Destination $DestinationDirectory
+    $OutputModuleManifest.foreach{
+        $PSItem.LastWriteTime = [DateTime]::Now
+    }
+    $OutputModuleManifest = [String]$OutputModuleManifest
+
+    #Additional files to include
+    if ($Include) {
+        $copiedItems = $Include | Copy-Item -Destination $DestinationDirectory -PassThru
+        $copiedItems.foreach{
+            $PSItem.LastWriteTime = [DateTime]::Now
+        }
+    }
 
     #Add a prerelease
-    if ($PressSetting.PreRelease) {
-        "This is a prerelease build and not meant for deployment!" > (Join-Path $DestinationDirectory "PRERELEASE-$($PressSetting.VersionLabel)")
+    if (-not $NoPreReleaseFile) {
+        'This is a prerelease build and not meant for deployment!' > (Join-Path $DestinationDirectory "PRERELEASE-$($PressSetting.VersionLabel)")
+    }
+
+    return [PSCustomObject]@{
+        OutputModuleManifest = $OutputModuleManifest
     }
 }

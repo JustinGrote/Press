@@ -2,18 +2,32 @@ using namespace System.IO
 function Get-Version {
     [CmdletBinding()]
     param(
-        [String]$ProjectPath = $PressSetting.BuildEnvironment.ProjectPath,
-        [Version]$GitVersionVersion = '5.6.6'
+        [Parameter(Mandatory)][String]$ProjectPath,
+        [Version]$GitVersionVersion = '5.6.6',
+        [String]$GitVersionConfigPath = $(Resolve-Path (Join-Path $MyInvocation.MyCommand.Module.ModuleBase '.\GitVersion.default.yml'))
     )
 
-    if (-not (Test-Path "$ProjectPath/.config/dotnet-tools.json")) {
-        $dotnetNewManifestStatus = dotnet new tool-manifest
-        if ($dotnetNewManifestStatus -ne 'The template "Dotnet local tool manifest file" was created successfully.') {
+    Write-Verbose "Using Gitversion Configuration $GitVersionConfigPath"
+    $gitCommand = Get-Command -CommandType Application -Name 'git'
+    if (-not $gitCommand) {
+        throw 'git was not found in your path. Ensure git is installed and can be found.'
+    }
+    if (-not (Test-Path "$ProjectPath\.git")) {
+        throw "No Git repository (.git folder) found in $ProjectPath. Please specify a folder with a git repository"
+    }
+
+    if (-not (Test-Path "$ProjectPath\.config\dotnet-tools.json")) {
+        [String]$dotnetNewManifestStatus = & dotnet new tool-manifest -o $ProjectPath *>&1
+        if ($dotnetNewManifestStatus -notlike '*was created successfully*') {
             throw "There was an error creating a dotnet tool manifest: $dotnetNewManifestStatus"
+        }
+        if (-not (Get-Item "$ProjectPath\.config\dotnet-tools.json")) {
+            throw "The manifest command completed successfully but $ProjectPath\.config\dotnet-tools.json still could not be found. This is probably a bug."
         }
     }
 
-    [String]$dotnetToolRestoreStatus = dotnet tool restore *>&1
+    #Output from a command is String in Windows and Object[] in Linux. Cast to string to normalize.
+    [String]$dotnetToolRestoreStatus = & dotnet tool restore *>&1
     $dotnetToolMatch = "*Tool 'gitversion.tool' (version '$GitVersionVersion') was restored.*"
     if ($dotnetToolRestoreStatus -notlike $dotnetToolMatch) {
         throw 'GitVersion dotnet tool was not found. Ensure you have a .NET manifest'
@@ -21,9 +35,9 @@ function Get-Version {
 
     #Reference Dotnet Local Tool directly rather than trying to go through .NET EXE
     #This appears to be an issue where dotnet is installed but the tools aren't added to the path for Linux
-    # $GitVersionExe = "$HOME/.dotnet/tools/dotnet-gitversion"
+    # $GitVersionExe = "$HOME\.dotnet\tools/dotnet-gitversion"
     $DotNetExe = "dotnet"
-    [String[]]$GitVersionParams = 'gitversion','/nofetch'
+    [String[]]$GitVersionParams = 'gitversion',$ProjectPath,'/nofetch'
     if (-not (
             $ProjectPath -and 
             (Test-Path (
@@ -31,40 +45,63 @@ function Get-Version {
                 )) 
         )) {
         #Use the Press Builtin
-        $GitVersionConfigPath = Resolve-Path (Join-Path $MyInvocation.MyCommand.Module.ModuleBase '.\GitVersion.default.yml')
         $GitVersionParams += '/config'
         $GitVersionParams += $GitVersionConfigPath
     }
 
     try {
-        $GitVersionOutput = & $DotNetExe @GitVersionParams
-        if (-not $GitVersionOutput) { throw 'GitVersion returned no output. Are you sure it ran successfully?' }
-        if ($LASTEXITCODE -ne 0) { throw "GitVersion returned exit code $LASTEXITCODE. Output:`n$GitVersionOutput" }
-
-        #Since GitVersion doesn't return error exit codes, we look for error text in the output
-        if ($GitVersionOutput -match '^[ERROR|INFO] \[') { throw "An error occured when running GitVersion.exe in $buildRoot" }
-        $GitVersionInfo = $GitVersionOutput | ConvertFrom-Json -ErrorAction stop
-
         if ($DebugPreference -eq 'Continue') {
-            & $GitVersionExe @GitVersionParams '/diag' *>&1 | Write-Debug
+            $GitVersionParams += '/diag'
+        }
+        [String[]]$GitVersionOutput = & $DotNetExe @GitVersionParams *>&1
+
+        if (-not $GitVersionOutput) { throw 'GitVersion returned no output. Are you sure it ran successfully?' }
+        if ($LASTEXITCODE -ne 0) { 
+            if ($GitVersionOutput -like '*GitVersion.GitVersionException: No commits found on the current branch*') {
+                #TODO: Auto-version calc maybe?
+                throw 'There are no commits on your current git branch. Please make at least one commit before trying to calculate the version'
+            }
+            throw "GitVersion returned exit code $LASTEXITCODE. Output:`n$GitVersionOutput" 
+        }
+        
+        #Split Diagnostic Messages from Regex
+        $i = 0
+        foreach ($lineItem in $GitVersionOutput) {
+            if ($GitVersionOutput[$i] -eq '{') {
+                break
+            }
+            $i++
+        }
+        if ($i -ne 0) {
+            [String[]]$diagMessages = $GitVersionOutput[0..($i - 1)]
+            $diagMessages | Write-Debug
+        }
+        
+        #Should not normally get this far if there are errors
+        if ($diagMessages -match 'ERROR \[') { 
+            throw "An error occured when running GitVersion.exe in $ProjectPath. Diag Message: `n$diagMessages"
+        }
+
+        #There is some trailing debug info sometimes
+        $jsonResult = $GitVersionOutput[$i..($GitVersionOutput.count - 1)] | 
+            Where-Object { $_ -notmatch 'Info.+Done writing' }
+
+        $GitVersionInfo = $jsonResult | ConvertFrom-Json -ErrorAction stop
+
+        #Fixup prerelease tag for Powershell modules
+        if ($GitVersionInfo.NuGetPreReleaseTagV2 -match '[-.]') {
+            Write-Verbose 'Detected invalid characters for Powershell Gallery Prerelease Tag. Fixing it up.'
+            $GitVersionInfo.NuGetPreReleaseTagV2 = $GitVersionInfo.NuGetPreReleaseTagV2 -replace '[\-\.]',''
+            $GitVersionInfo.NuGetVersionV2 = $GitVersionInfo.MajorMinorPatch,$GitVersionInfo.NuGetPreReleaseTagV2 -join '-'
         }
 
         $GitVersionResult = $GitVersionInfo | 
-            Select-Object branchname,majorminorpatch,prereleaselabel,semver,fullsemver,legacysemverpadded | 
-            Format-Table |
+            Select-Object BranchName,MajorMinorPatch,NuGetVersionV2,NuGetPreReleaseTagV2 | 
+            Format-List |
             Out-String
-        Write-Verbose "Gitversion Result: $GitVersionResult"
-
-        if ($PressSetting.BuildEnvironment.BuildOutput) {
-            #Dont use versioned folder
-            #TODO: Potentially put this back
-            # $PressSetting.BuildModuleOutput = [io.path]::Combine($PressSetting.BuildEnvironment.BuildOutput,$PressSetting.BuildEnvironment.ProjectName,$PressSetting.Version)
-            $PressSetting.BuildModuleOutput = [io.path]::Combine($PressSetting.BuildEnvironment.BuildOutput,$PressSetting.BuildEnvironment.ProjectName)
-        }
+        Write-Verbose "Gitversion Result: `n$($GitVersionResult | Format-List | Out-String)"
     } catch {
-        Write-Warning "There was an error when running GitVersion.exe $buildRoot`: $PSItem. The output of the command (if any) is below...`r`n$GitVersionOutput"
-        & $GitVersionexe /diag
-        throw 'Exiting due to failed Gitversion execution'
+        throw "There was an error when running GitVersion.exe $buildRoot`: $PSItem. The output of the command (if any) is below...`r`n$GitVersionOutput"
     } finally {
         #Restore the tag if it was present
         #TODO: Evaluate if this is still necessary
@@ -73,9 +110,8 @@ function Get-Version {
         #     git tag $currentTag -a -m "Automatic GitVersion Release Tag Generated by Invoke-Build"
         # }
     }
-
+    
     return $GitVersionInfo
-
 
     # #GA release detection
     # if ($BranchName -eq 'master') {

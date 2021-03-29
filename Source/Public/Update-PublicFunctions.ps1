@@ -6,15 +6,14 @@ This function sets a module manifest for the various function exports that are p
 function Update-PublicFunctions {
     param(
         #Path to the module manifest to update
-        [String]$Path = $PressSetting.OutputModuleManifest,
-        #Specify to override the auto-detected function list
-        [String[]]$Functions = $PressSetting.Functions,
+        [Parameter(Mandatory)][String]$Path,
         #Paths to the module public function files
-        [String]$PublicFunctionPath = (Join-Path $PressSetting.BuildEnvironment.ModulePath 'Public')
+        [String]$PublicFunctionPath,
+        #Optionally Specify the list of functions to override auto-detection
+        [String[]]$Functions
     )
 
     if (-not $Functions) {
-        write-verbose "Autodetecting Public Functions in $Path"
         $Functions = Get-PublicFunctions $PublicFunctionPath
     }
 
@@ -23,5 +22,9 @@ function Update-PublicFunctions {
         return
     }
 
-    BuildHelpers\Update-Metadata -Path $Path -PropertyName FunctionsToExport -Value $Functions
+    $currentFunctions = Get-Metadata -Path $Path -PropertyName FunctionsToExport
+    if (Compare-Object $currentFunctions $functions) {
+        Write-Verbose "Current Function List in manifest doesn't match. Current: $currentFunctions New: $Functions. Updating."
+        BuildHelpers\Update-Metadata -Path $Path -PropertyName FunctionsToExport -Value $Functions
+    }
 }

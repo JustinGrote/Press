@@ -1,9 +1,8 @@
 function Invoke-Clean {
     [CmdletBinding()]
     param (
-        $buildProjectPath = $PressSetting.BuildEnvironment.ProjectPath,
-        $buildOutputPath = $PressSetting.BuildEnvironment.BuildOutput,
-        $buildProjectName = $PressSetting.BuildEnvironment.ProjectName,
+        [Parameter(Mandatory)]$BuildOutputPath,
+        [Parameter(Mandatory)]$buildProjectName,
         [Switch]$Prerequisites
     )
 
@@ -33,16 +32,17 @@ function Invoke-Clean {
     if ($Prerequisites) {
         $PrerequisitePath = (Join-Path ([Environment]::GetFolderpath('LocalApplicationData')) 'Press')
         Write-Verbose "Removing and resetting Press Prerequisites: $PrerequisitePath"
-        Remove-BuildItem $buildOutputPath -Verbose:$false
+        Remove-BuildItem $PrerequisitePath -Verbose:$false
     }
 
     New-Item -Type Directory $BuildOutputPath > $null
 
-    #Unmount any modules named the same as our module
-    Remove-Module $buildProjectName -Verbose:$false -ErrorAction SilentlyContinue
-    
-    #META: Remount Press
+    #META: Force reload Press if building press
     if ($buildProjectName -eq 'Press') {
-        Import-Module -Name $PressSetting.BuildEnvironment.PSModuleManifest -Force -Global
+        Write-Verbose 'Detected Press Meta-Build'
+        Import-Module -Force -Global -Verbose -Name (Join-Path $MyInvocation.MyCommand.Module.ModuleBase 'Press.psd1')
+    } else {
+        #Unmount any modules named the same as our module
+        Remove-Module $buildProjectName -Verbose:$false -ErrorAction SilentlyContinue
     }
 }
