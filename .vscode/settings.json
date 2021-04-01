@@ -1,0 +1,7 @@
+{
+    "editor.formatOnSaveMode": "modifications",
+    "editor.formatOnSave": true,
+    "github-actions.workflows.pinned.workflows": [
+        ".github/workflows/press.yml"
+    ]
+}

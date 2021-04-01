@@ -10,7 +10,7 @@ function Get-PublicFunctions {
     [CmdletBinding()]
     param(
         #The path to the public module directory containing the modules. Defaults to the "Public" folder where the source module manifest resides.
-        [String]$PublicModulePath = (Join-Path (Split-Path $PressSetting.BuildEnvironment.PSModuleManifest) 'Public')
+        [Parameter(Mandatory)][String]$PublicModulePath
     )
 
     $PublicFunctionCode = Get-ChildItem $PublicModulePath -Filter '*.ps1'

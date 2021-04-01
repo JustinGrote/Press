@@ -7,6 +7,13 @@ Press is a rewrite of PowerCD with some modern decisions:
 1. Embrace devmoji but still support conventional commits
 1. Expand to github releases, changelog support, artifacts, etc.
 
+
+## Press Commandments
+
+Thou shalt:
+1. Structure with Public and Private folders to denote exported and non-exported functions
+1. Name public functions the same as their .ps1 file name. Note that you can have other "helper" functions in the same file that the public function references, as long as they are not named the same as the .ps1 file
+
 See the project section for the roadmap
 
 More to follow...

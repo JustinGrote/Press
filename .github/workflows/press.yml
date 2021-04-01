@@ -14,38 +14,24 @@ on:
       - production
 jobs:
   build:
-    name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: true
-      matrix:
-        os:
-          - ubuntu-20.04
-          - ubuntu-18.04
-          - ubuntu-16.04
-          - windows-2019
-          - windows-2016
-          - macos-11.0
-          - macos-10.15
-        #TODO: Pester test with this path
-        # psversion:
-        #   - pwsh
-        #   - powershell
-        # exclude:
-        #   - os: ubuntu-18.04
-        #     psversion: powershell
-        #   - os: ubuntu-16.04
-        #     psversion: powershell
-        #   - os: macOS-latest
-        #     psversion: powershell
+    name: 👷 Build
+    runs-on: ubuntu-20.04
     steps:
-      - name: Checkout
+      # Workaround: https://github.com/actions/runner/issues/520#issuecomment-720508121
+      - if: always()
+        name: 🐛 Get Debug Status
+        id: debugStatus
+        run: |
+          echo '::set-output name=runnerDebug::${{secrets.ACTIONS_RUNNER_DEBUG}}'
+          echo '::set-output name=stepDebug::${{secrets.ACTIONS_STEP_DEBUG}}'
+
+      - name: 🚚 Checkout
         uses: actions/checkout@v2
         with:
           # Required for GitVersion
           #TODO: Calculate fetch depth up to the parent branch's last version tag (this is all gitversion really needs)
           fetch-depth: 0
-      - name: Cache Powershell Modules
+      - name: 🔗 Cache Powershell Modules
         uses: actions/cache@v2
         with:
           path: |
@@ -54,29 +40,114 @@ jobs:
             ~/.local/share/powershell/Modules
             ~/.local/share/Press
             ~/AppData/Local/Press
-          key: ${{ matrix.os }}-${{ matrix.psversion }}-${{ hashFiles('Source/.config/Requirements.psd1') }}
+            ~/.nuget/packages/gitversion.tool
+          key: build-${{ hashFiles('Source/.config/Requirements.psd1') }}
 
-      - name: View Installed Powershell Modules
-        shell: pwsh
-        run: ($ENV:PSModulePath).split([io.path]::pathseparator) | where {Test-Path $_} | Get-ChildItem
-
-      - name: Build
+      - if: steps.debugStatus.outputs.stepDebug
+        name: 🔬 Powershell Environment Information
         shell: pwsh
         run: |
-          if ('${{secrets.ACTIONS_RUNNER_DEBUG}}') {$verbosePreference = 'continue'}
-          ./build.ps1
-      
-      - uses: actions/upload-artifact@v2
+          "::group::Powershell Modules"
+          ($ENV:PSModulePath).split([io.path]::pathseparator) | where {Test-Path $_} | Get-ChildItem
+          "::endgroup"
+
+          "::group::Variables"
+          Get-Variable | select name,value | Out-String
+          "::endgroup"
+
+          "::group::Environment"
+          dir env: | Out-String
+          "::endgroup"
+
+      - name: 👷 Build
+        id: build
+        shell: pwsh
+        run: |
+          if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
+          ./build.ps1 '.,Package'
+
+      - name: 📦 Capture Powershell Module
+        uses: actions/upload-artifact@v2
         with:
-          name: PSModule Zip
-          path: BuildOutput/
+          name: PSModule
+          path: BuildOutput/${{ steps.build.outputs.moduleName }}
 
-      # Workaround: https://github.com/actions/runner/issues/520#issuecomment-720508121
-      - if: always()
-        name: Get Debug Status
-        id: debugInfo
-        run: echo '::set-output name=runnerDebug::${{secrets.ACTIONS_RUNNER_DEBUG}}'
+      - name: 📦 Capture Powershell Zip
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.build.outputs.moduleName }}-${{ steps.build.outputs.nugetVersion }}.zip
+          #FIXME: Double zip
+          path: BuildOutput/*.zip
 
-      - if: always() && runner.os != 'Windows' && steps.debugInfo.outputs.runnerDebug
-        name: Debug via SSH if ACTIONS_RUNNER_DEBUG secret is set
+      - name: 📦 Capture Powershell Nuget Package
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.build.outputs.moduleName }}.${{ steps.build.outputs.nugetVersion }}.nupkg
+          path: BuildOutput/*.nupkg
+
+      - if: always() && runner.os != 'Windows' && steps.debugStatus.outputs.runnerDebug
+        name: 🐛 Debug via SSH if ACTIONS_RUNNER_DEBUG secret is set
         uses: lhotari/action-upterm@v1
+
+  test:
+    name: 🧪 Test
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-20.04
+          - ubuntu-18.04
+          - ubuntu-16.04
+          - windows-latest
+          - windows-2019
+          - windows-2016
+          - macos-latest
+          - macos-11.0
+          - macos-10.15
+    steps:
+      - name: 🚚 Checkout
+        uses: actions/checkout@v2
+        with:
+          # Required for GitVersion
+          #TODO: Calculate fetch depth up to the parent branch's last version tag (this is all gitversion really needs)
+          fetch-depth: 0
+
+      - name: 🔗 Cache Powershell Modules
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/Documents/Powershell/Modules
+            ~/Documents/WindowsPowershell/Modules
+            ~/.local/share/powershell/Modules
+            ~/.local/share/Press
+            ~/AppData/Local/Press
+            ~/.nuget/packages/gitversion.tool
+          key: test-${{ matrix.os }}-${{ hashFiles('Source/.config/Requirements.psd1') }}
+
+      #Meta: We don't test on 5.1 for using the module
+      - name: ➕ Restore Built Powershell Module
+        uses: actions/download-artifact@v2
+        with:
+          name: PSModule
+          #FIXME: Remove Hardcoding
+          path: BuildOutput/Press
+
+      #TODO: Remove redundancy when https://github.com/actions/runner/issues/444 is implemented
+      - name: 🧪 Test Powershell 7+
+        shell: pwsh
+        run: |
+          if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
+          $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
+          . ./build.ps1 'Test'
+
+      #Meta: We don't test on 5.1 for using the module for Press
+      - if: runner.os == 'Windows' && github.repository	!= 'JustinGrote/Press'
+        name: 🧪 Test Windows Powershell
+        shell: powershell
+        run: |
+          if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
+          $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
+          . ./build.ps1 'Test'

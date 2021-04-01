@@ -1,56 +1,160 @@
 #requires -module Press
 
-if ($PSVersionTable.PSVersion -lt '7.0.0') {
-    Write-Warning "Press is only supported on Powershell 7 and above. You are currently on unsupported Powershell version: $($PSVersionTable.PSVersion) and while it may still work, there are no guarantees whatsoever. Note that while the build process is only supported on Powershell 7, your BUILT modules can operate on earlier powershell versions if you so choose."
-}
-
 $commonParams = @{
     Verbose = ($VerbosePreference -eq 'continue')
 }
 
-Task Press.Init {
+Enter-Build {
     #TODO: Make this faster by not relying on PSGetv2
     @('PSDepend').foreach{
         try {
+            Write-Verbose "Importing $PSItem"
             Import-Module $PSItem -Global
         } catch [IO.FileNotFoundException] {
             if ($PSItem.FullyQualifiedErrorId -ne 'Modules_ModuleNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand') {
                 throw $PSItem
             }
+            Write-Verbose "Installing $PSItem"
             Install-Module -Scope CurrentUser -Force PSDepend
         }
     }
-    Invoke-PSDepend -Path $PSScriptRoot/.config -Force
+    Write-Verbose "Invoking $PSItem"
+    $PSDependConfigRoot = Resolve-Path "$PSScriptRoot\.config"
+    Invoke-PSDepend -Path $PSDependConfigRoot -Force
 
-    #TODO: Fix the module scoping of this and make functions not dependent on state
-    $GLOBAL:PressSetting = Get-PressSetting
-
-
+    $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
+    New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
 }
 
-Task Press.Version {
-    $SCRIPT:GitVersionInfo = Get-PressVersion @commonParams
+Task Press.Version @{
+    Inputs  = {
+        #Calculate a new version on every commit. Ignore for Github Actions due to PRs
+        if (-not $ENV:GITHUB_ACTIONS) {
+            Join-Path "$BuildRoot\.git\refs\heads\" $PressSetting.BuildEnvironment.BranchName
+        }
+        #META: Gitversion Config
+        #FIXME: This should probably be in settings
+        [String]$SCRIPT:GitVersionConfig = ''
+        if ($PressSetting.General.ModuleName -eq 'Press') {
+            $SCRIPT:GitVersionConfig = Join-Path $PressSetting.General.SrcRootDir 'GitVersion.default.yml'
+        } else {
+            $SCRIPT:GitVersionConfig = Join-Path $PressSetting.General.SrcRootDir 'Gitversion.yml'
+        }
+
+        #Gitversion config is optional but we want to detect changes if it exists
+        Get-Item $GitVersionConfig -ErrorAction SilentlyContinue
+    }
+    Outputs = {
+        "$($PressSetting.Build.OutDir)\.gitversion"
+    }
+    Jobs    = {
+        $SCRIPT:GitVersionInfo = Get-PressVersion -ProjectPath $buildRoot -GitVersionConfigPath $SCRIPT:GitVersionConfig @commonParams
+        $SCRIPT:GitVersionInfo | ConvertTo-Json > $Outputs
+    }
 }
 
-Task Press.Clean Press.Init,{
-    Invoke-PressClean @commonParams
+Task Press.Clean {
+    Invoke-PressClean -buildOutputPath $PressSetting.Build.OutDir -buildProjectName $PressSetting.General.ModuleName @commonParams
 }
 
-Task Press.SetModuleVersion Press.Version,{
-    Set-PressVersion -Version $GitVersionInfo.MajorMinorPatch -PreRelease $GitVersionInfo.NuGetPreReleaseTagV2
+Task Press.Test.Pester @{
+    Inputs  = (Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir)
+    Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
+    Jobs    = {
+        $pesterResult = Test-PressPester -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
+        Assert $pesterResult 'No Pester Result produced'
+    }
 }
 
-task Press.CopyModuleFiles {
-    Copy-PressModuleFiles @commonParams
+#FIXME: Implement non-press version
+# Task Press.CopyModuleFiles @{
+#     Inputs  = Get-ChildItem -File -Recurse "$BuildRoot\Source"
+#     Outputs = Get-ChildItem -File -Recurse "$BuildRoot\BuildOutput\Press"
+#     #(Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
+
+#     Jobs    = {
+#         $copyResult = Copy-PressModuleFiles -Destination "$BuildRoot\BuildOutput\Press" @commonParams
+#         $PressSetting.OutputModuleManifest = $copyResult.OutputModuleManifest
+#     }
+# }
+
+Task Press.SetModuleVersion {
+    $SCRIPT:GitVersionInfo = Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json
+    Set-PressVersion @commonParams -Version $GitVersionInfo.MajorMinorPatch -PreRelease $GitVersionInfo.NuGetPreReleaseTagV2 -Path (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1")
+    if ($ENV:GITHUB_ACTIONS) {
+        "::set-output name=nugetVersion::$($SCRIPT:GitVersionInfo.NugetVersionV2)"
+        #TODO: Move elsewhere?
+        "::set-output name=moduleName::$(Split-Path $PressSetting.General.ModuleName -Leaf)"
+    }
 }
 
-task Press.ExportPublicFunctions {
-    Update-PressPublicFunctions @commonParams
+Task Press.UpdatePublicFunctions {
+    Update-PressPublicFunctions @commonParams -Path (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1") -PublicFunctionPath $(Join-Path $PressSetting.General.SrcRootDir 'Public')
 }
 
+Task Press.Package.Zip @{
+    Inputs  = {
+        Get-ChildItem -File -Recurse $PressSetting.Build.ModuleOutDir
+        #Get-Item (Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
+    }
+    Outputs = {
+        $SCRIPT:GitVersionInfo = Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json
+        [String]$ZipFileName = $PressSetting.General.ModuleName + '.' + $SCRIPT:GitVersionInfo.NugetVersionV2 + '.zip'
+        [String](Join-Path $PressSetting.Build.OutDir $ZipFileName)
+    }
+    Jobs    = {
+        Remove-Item "$(Split-Path $Outputs)\*.zip"
+        Compress-PressModule -Path $Inputs -Destination $Outputs
+    }
+}
 
-Task Clean Press.Clean
-Task Version Press.Version
-Task Build Press.CopyModuleFiles,Press.SetModuleVersion,Press.ExportPublicFunctions
+Task Press.Package.Nuget @{
+    Inputs  = {
+        Get-ChildItem -File -Recurse $PressSetting.Build.ModuleOutDir
+        Get-ChildItem -File -Recurse "$($PressSetting.Build.OutDir)\.gitversion"
+        #Get-Item (Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
+    }
+    Outputs = {
+        # [String]$ZipFileName = $PressSetting.BuildEnvironment.ProjectName + '.' + $SCRIPT:GitVersionInfo.NugetVersionV2 + '.zip'
+        # [String](Join-Path $PressSetting.BuildEnvironment.BuildOutput $ZipFileName)
+        $nugetPackageName = $PressSetting.General.ModuleName + '.' + (Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json).NugetVersionV2 + '.nupkg'
+        
+        "$($PressSetting.Build.OutDir)\$nugetPackageName"
+    }
+    Jobs    = {
+        Remove-Item "$(Split-Path $Outputs)\*.nupkg"
+        New-PressNugetPackage @commonParams -Path $PressSetting.Build.ModuleOutDir -Destination $PressSetting.Build.OutDir
+    }
+}
 
-Task . Clean,Version,Build
+#region MetaTasks
+Task Press.Build @(
+    'Press.Version'
+    'Press.CopyModuleFiles'
+    'Press.SetModuleVersion'
+    'Press.UpdatePublicFunctions'
+)
+
+
+task Press.Package @(
+    'Press.Package.Zip'
+    'Press.Package.Nuget'
+)
+task Press.Test @(
+    'Press.Test.Pester'
+
+)
+Task Press.Default @(
+    'Press.Build'
+    'Press.Test'
+)
+#endregion MetaTasks
+
+#region Defaults
+task Clean      Press.Clean
+task Build      Press.Build
+Task Test       Press.Test
+task Package    Press.Package
+task Version    Press.Version
+Task .          Press.Default
+#endregion Defaults

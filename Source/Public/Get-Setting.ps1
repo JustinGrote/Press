@@ -3,7 +3,7 @@ function Get-Setting {
     [CmdletBinding()]
     param (
         #Configuration Path
-        [String]$ConfigPath,
+        [Parameter(Mandatory)][String]$ConfigPath,
         #Build Output Directory Name. Defaults to Get-BuildEnvironment Default which is 'BuildOutput'
         $BuildOutput = 'BuildOutput'
     )
@@ -36,9 +36,8 @@ function Get-Setting {
         OutDir = $Settings.BuildEnvironment.BuildOutput
 
         # Module output directory
-        # This will be computed in 'Initialize-PSBuild' so we can allow the user to
         # override the top-level 'OutDir' above and compute the full path to the module internally
-        ModuleOutDir = $Settings.BuildEnvironment.BuildOutput
+        ModuleOutDir  = Join-Path $Settings.BuildEnvironment.BuildOutput $Settings.BuildEnvironment.ProjectName
 
         # Controls whether to "compile" module into single PSM1 or not
         CompileModule = $true

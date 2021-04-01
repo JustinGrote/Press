@@ -1,8 +1,6 @@
 #requires -version 5
 using namespace System.IO
 
-[CmdletBinding()]
-param()
 <#
 .SYNOPSIS
 Bootstraps Invoke-Build and starts it with supplied parameters.

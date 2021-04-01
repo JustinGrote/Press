@@ -10,3 +10,6 @@
 
 #Temporarily ignore PowerCD during conversion
 /PowerCD
+
+#Test Results
+TestExplorerResults.xml
