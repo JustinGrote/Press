@@ -23,7 +23,7 @@ Enter-Build {
     Invoke-PSDepend -Path $PSDependConfigRoot -Force
 
     $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
-    New-Item -ItemType Directory -Path $PressSetting.BuildEnvironment.BuildOutput -Force | Out-Null
+    New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
 }
 
 Task Press.Version @{
@@ -33,18 +33,19 @@ Task Press.Version @{
             Join-Path "$BuildRoot\.git\refs\heads\" $PressSetting.BuildEnvironment.BranchName
         }
         #META: Gitversion Config
+        #FIXME: This should probably be in settings
         [String]$SCRIPT:GitVersionConfig = ''
-        if ($PressSetting.BuildEnvironment.ProjectName -eq 'Press') {
-            $SCRIPT:GitVersionConfig = Join-Path $PressSetting.BuildEnvironment.ProjectPath 'Source\GitVersion.default.yml'
+        if ($PressSetting.General.ModuleName -eq 'Press') {
+            $SCRIPT:GitVersionConfig = Join-Path $PressSetting.General.SrcRootDir 'GitVersion.default.yml'
         } else {
-            $SCRIPT:GitVersionConfig = Join-Path $PressSetting.BuildEnvironment.ProjectPath 'Gitversion.yml'
+            $SCRIPT:GitVersionConfig = Join-Path $PressSetting.General.SrcRootDir 'Gitversion.yml'
         }
 
         #Gitversion config is optional but we want to detect changes if it exists
         Get-Item $GitVersionConfig -ErrorAction SilentlyContinue
     }
     Outputs = {
-        "$BuildRoot\BuildOutput\.gitversion"
+        "$($PressSetting.Build.OutDir)\.gitversion"
     }
     Jobs    = {
         $SCRIPT:GitVersionInfo = Get-PressVersion -ProjectPath $buildRoot -GitVersionConfigPath $SCRIPT:GitVersionConfig @commonParams
@@ -53,14 +54,14 @@ Task Press.Version @{
 }
 
 Task Press.Clean {
-    Invoke-PressClean -buildOutputPath "$BuildRoot\BuildOutput" -buildProjectName $PressSetting.BuildEnvironment.ProjectName @commonParams
+    Invoke-PressClean -buildOutputPath $PressSetting.Build.OutDir -buildProjectName $PressSetting.General.ModuleName @commonParams
 }
 
 Task Press.Test.Pester @{
-    Inputs  = (Get-ChildItem -File -Recurse "$BuildRoot\Source")
-    Outputs = "$BuildRoot\BuildOutput\TEST-Results.xml"
+    Inputs  = (Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir)
+    Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
     Jobs    = {
-        $pesterResult = Test-PressPester -Path $PressSetting.BuildEnvironment.ProjectPath -OutputPath $PressSetting.BuildEnvironment.BuildOutput
+        $pesterResult = Test-PressPester -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
         Assert $pesterResult 'No Pester Result produced'
     }
 }
@@ -78,28 +79,28 @@ Task Press.Test.Pester @{
 # }
 
 Task Press.SetModuleVersion {
-    $SCRIPT:GitVersionInfo = Get-Content -Raw "$BuildRoot\BuildOutput\.gitversion" | ConvertFrom-Json
-    Set-PressVersion @commonParams -Version $GitVersionInfo.MajorMinorPatch -PreRelease $GitVersionInfo.NuGetPreReleaseTagV2 -Path (Get-Item $BuildRoot\BuildOutput\Press\*.psd1)
+    $SCRIPT:GitVersionInfo = Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json
+    Set-PressVersion @commonParams -Version $GitVersionInfo.MajorMinorPatch -PreRelease $GitVersionInfo.NuGetPreReleaseTagV2 -Path (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1")
     if ($ENV:GITHUB_ACTIONS) {
         "::set-output name=nugetVersion::$($SCRIPT:GitVersionInfo.NugetVersionV2)"
         #TODO: Move elsewhere?
-        "::set-output name=moduleName::$(Split-Path $PressSetting.BuildEnvironment.ProjectName -Leaf)"
+        "::set-output name=moduleName::$(Split-Path $PressSetting.General.ModuleName -Leaf)"
     }
 }
 
 Task Press.UpdatePublicFunctions {
-    Update-PressPublicFunctions @commonParams -Path (Get-Item $BuildRoot\BuildOutput\Press\*.psd1) -PublicFunctionPath $(Join-Path $PressSetting.BuildEnvironment.ModulePath 'Public')
+    Update-PressPublicFunctions @commonParams -Path (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1") -PublicFunctionPath $(Join-Path $PressSetting.General.SrcRootDir 'Public')
 }
 
 Task Press.Package.Zip @{
     Inputs  = {
-        Get-ChildItem -File -Recurse "$BuildRoot\BuildOutput\Press"
+        Get-ChildItem -File -Recurse $PressSetting.Build.ModuleOutDir
         #Get-Item (Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
     }
     Outputs = {
-        $SCRIPT:GitVersionInfo = Get-Content -Raw "$BuildRoot\BuildOutput\.gitversion" | ConvertFrom-Json
-        [String]$ZipFileName = $PressSetting.BuildEnvironment.ProjectName + '.' + $SCRIPT:GitVersionInfo.NugetVersionV2 + '.zip'
-        [String](Join-Path $PressSetting.BuildEnvironment.BuildOutput $ZipFileName)
+        $SCRIPT:GitVersionInfo = Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json
+        [String]$ZipFileName = $PressSetting.General.ModuleName + '.' + $SCRIPT:GitVersionInfo.NugetVersionV2 + '.zip'
+        [String](Join-Path $PressSetting.Build.OutDir $ZipFileName)
     }
     Jobs    = {
         Remove-Item "$(Split-Path $Outputs)\*.zip"
@@ -109,20 +110,20 @@ Task Press.Package.Zip @{
 
 Task Press.Package.Nuget @{
     Inputs  = {
-        Get-ChildItem -File -Recurse "$BuildRoot\BuildOutput\Press"
-        Get-ChildItem -File -Recurse "$BuildRoot\BuildOutput\.gitversion"
+        Get-ChildItem -File -Recurse $PressSetting.Build.ModuleOutDir
+        Get-ChildItem -File -Recurse "$($PressSetting.Build.OutDir)\.gitversion"
         #Get-Item (Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
     }
     Outputs = {
         # [String]$ZipFileName = $PressSetting.BuildEnvironment.ProjectName + '.' + $SCRIPT:GitVersionInfo.NugetVersionV2 + '.zip'
         # [String](Join-Path $PressSetting.BuildEnvironment.BuildOutput $ZipFileName)
-        $nugetPackageName = $PressSetting.BuildEnvironment.ProjectName + '.' + (Get-Content -Raw $BuildRoot\BuildOutput\.gitversion | ConvertFrom-Json).NugetVersionV2 + '.nupkg'
+        $nugetPackageName = $PressSetting.General.ModuleName + '.' + (Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json).NugetVersionV2 + '.nupkg'
         
-        "$BuildRoot\BuildOutput\$nugetPackageName"
+        "$($PressSetting.Build.OutDir)\$nugetPackageName"
     }
     Jobs    = {
         Remove-Item "$(Split-Path $Outputs)\*.nupkg"
-        New-PressNugetPackage @commonParams -Path "$BuildRoot\BuildOutput\Press" -Destination "$BuildRoot\BuildOutput"
+        New-PressNugetPackage @commonParams -Path $PressSetting.Build.ModuleOutDir -Destination $PressSetting.Build.OutDir
     }
 }
 
