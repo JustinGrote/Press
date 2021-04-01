@@ -66,12 +66,6 @@ jobs:
           if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
           ./build.ps1 '.,Package'
 
-      - name: Gitversion Debug
-        if: failure()
-        shell: pwsh
-        run: |
-          dotnet gitversion /diag
-
       - name: 📦 Capture Powershell Module
         uses: actions/upload-artifact@v2
         with:
