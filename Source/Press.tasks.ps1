@@ -66,6 +66,24 @@ Task Press.Test.Pester @{
     }
 }
 
+#TODO: Inputs/Outputs
+Task Press.ReleaseNotes {
+    #TODO: Replace OutDir with ReleaseNotes or Changelog Specific PSSetting
+    Build-PressReleaseNotes @commonParams -Path $PressSetting.General.ProjectRoot -Destination (Join-Path $PressSetting.Build.OutDir 'RELEASENOTES.MD')
+}
+
+#TODO: Inputs/Outputs
+Task Press.SetReleaseNotes Press.ReleaseNotes, {
+    #TODO: Replace with specific PSSetting for modulemanifest
+    [String]$ReleaseNotes = (Import-PowerShellDataFile $PressSetting.BuildEnvironment.PSModuleManifest).PrivateData.PSData
+    #TODO: Replace OutDir with ReleaseNotes or Changelog Specific PSSetting
+    [String]$newReleaseNotes = Get-Content -Raw (Join-Path $PressSetting.Build.OutDir 'RELEASENOTES.MD')
+
+    if ($newReleaseNotes -ne $ReleaseNotes) {
+        Update-ModuleManifest -Path $PressSetting.BuildEnvironment.PSModuleManifest -ReleaseNotes $newReleaseNotes
+    }
+}
+
 #FIXME: Implement non-press version
 # Task Press.CopyModuleFiles @{
 #     Inputs  = Get-ChildItem -File -Recurse "$BuildRoot\Source"
@@ -133,6 +151,7 @@ Task Press.Build @(
     'Press.CopyModuleFiles'
     'Press.SetModuleVersion'
     'Press.UpdatePublicFunctions'
+    'Press.SetReleaseNotes'
 )
 
 
