@@ -12,7 +12,7 @@ General = @{
     ModuleName = $env:BHProjectName
 
     # Module version. If not specified will attempt to detect
-    ModuleVersion = 
+    ModuleVersion = $null
 
     # Module manifest path
     ModuleManifestPath = $env:BHPSModuleManifest
