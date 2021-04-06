@@ -25,6 +25,7 @@ function Update-PublicFunctions {
     $currentFunctions = Get-Metadata -Path $Path -PropertyName FunctionsToExport
     if (Compare-Object $currentFunctions $functions) {
         Write-Verbose "Current Function List in manifest doesn't match. Current: $currentFunctions New: $Functions. Updating."
+        #HACK: Don't use Update-ModuleManifest because of https://github.com/PowerShell/PowerShellGetv2/issues/294
         BuildHelpers\Update-Metadata -Path $Path -PropertyName FunctionsToExport -Value $Functions
     }
 }

@@ -18,15 +18,14 @@ function Set-Version {
     # $currentVersion = Get-Metadata -Path $Path -PropertyName 'ModuleVersion'
     if ($currentVersion -ne $Version) {
         Write-Verbose "Current Manifest Version $currentVersion doesn't match $Version. Updating..."
-        # BuildHelpers\Update-Metadata -Path $Path -PropertyName 'ModuleVersion' -Value $Version
-        Update-ModuleManifest -Path $Path -ModuleVersion $Version
+        BuildHelpers\Update-Metadata -Path $Path -PropertyName ModuleVersion -Value $Version
     }
     
     # $currentPreRelease = BuildHelpers\Get-Metadata -Path $Path -PropertyName 'PreRelease'
     $currentPreRelease = $Manifest.privatedata.psdata.prerelease
     if ($currentPreRelease -ne $PreRelease)  {
         Write-Verbose "Current Manifest Prerelease Tag $currentPreRelease doesn't match $PreRelease. Updating..."
-        # BuildHelpers\Update-Metadata -Path $Path -PropertyName 'PreRelease' -Value $PreRelease
-        Update-ModuleManifest -Path $Path -Prerelease $PreRelease
+        #HACK: Do not use update-modulemanifest because https://github.com/PowerShell/PowerShellGetv2/issues/294
+        BuildHelpers\Update-Metadata -Path $Path -PropertyName PreRelease -Value $PreRelease
     }
 }

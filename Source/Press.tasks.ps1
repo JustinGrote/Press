@@ -85,7 +85,8 @@ Task Press.SetReleaseNotes Press.ReleaseNotes, {
     $ReleaseNotesCompare = [text.encoding]::UTF8.GetBytes($ReleaseNotes) | Where-Object { $_ -ne 10 }
     $ReleaseNotesNewCompare = [text.encoding]::UTF8.GetBytes($newReleaseNotes) | Where-Object { $_ -ne 10 }
     if (-not $ReleaseNotes -or (Compare-Object $ReleaseNotesCompare $ReleaseNotesNewCompare)) {
-        Update-ModuleManifest -Path $ModuleOutManifest -ReleaseNotes $newReleaseNotes.Trim()
+        #BUG: Do not use update-modulemanifest because https://github.com/PowerShell/PowerShellGetv2/issues/294
+        BuildHelpers\Update-Metadata -Path $ModuleOutManifest -Property ReleaseNotes -Value $newReleaseNotes.Trim()
     }
 }
 
