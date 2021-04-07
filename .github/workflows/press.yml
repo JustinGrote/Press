@@ -151,3 +151,25 @@ jobs:
           if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
           $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
           . ./build.ps1 'Test'
+
+  deploy:
+    name: 🚀 Deploy
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-20.04
+    environment: Powershell Gallery
+    needs:
+      - build
+      - test
+    steps:
+      - name: ➕ Restore Built Powershell Module
+        uses: actions/download-artifact@v2
+        with:
+          name: PSModule
+          #FIXME: Remove Hardcoding
+          path: BuildOutput/Press
+      - name: 🚀 Publish Module to PowerShell Gallery
+        uses: pcgeek86/publish-powershell-module-action@v19
+        id: publish-module
+        with:
+          modulePath: BuildOutput/Press
+          NuGetApiKey: ${{ secrets.PS_GALLERY_KEY }}
