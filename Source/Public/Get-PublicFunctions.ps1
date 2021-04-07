@@ -10,29 +10,24 @@ function Get-PublicFunctions {
     [CmdletBinding()]
     param(
         #The path to the public module directory containing the modules. Defaults to the "Public" folder where the source module manifest resides.
-        [Parameter(Mandatory)][String]$PublicModulePath
+        [Parameter(Mandatory)][String[]]$PublicModulePath
     )
 
-    $PublicFunctionCode = Get-ChildItem $PublicModulePath -Filter '*.ps1'
+    $publicFunctionFiles = Get-ChildItem $PublicModulePath -Filter '*.ps1'
+    | Where-Object Name -NotMatch '\.\w+?\.ps1$' #Exclude Tests.ps1, etc.
+    #TODO: Make this a PSSetting
 
-    #using statements have to be first, so we have to pull them out and move them to the top
-    [String[]]$UsingLines = @()
-    [String]$PublicFunctionCodeWithoutUsing = (Get-Content $PublicFunctionCode.FullName | Where-Object {
-        if ($_ -match '^using .+$') {
-            $UsingLines += $_
-            return $false
+    foreach ($fileItem in $publicFunctionFiles) {
+        $scriptContent = Get-Content -Raw $fileItem
+        $functionNames = [ScriptBlock]::Create($scriptContent).AST.EndBlock.Statements | Where-Object {
+            $PSItem -is [Management.Automation.Language.FunctionDefinitionAst]
+        } | ForEach-Object Name
+        $functionName = $FileItem.BaseName
+        if ($functionName -notin $functionNames) {
+            Write-Warning "$fileItem`: There is no function named $functionName in $fileItem, please ensure your public function is named the same as the file. Discovered functions: $functionNames"
+            continue
         }
-        return $true
-    }) -join [Environment]::NewLine
-
-    #Rebuild PublicFunctionCode with a stringbuilder to put all the using up top
-    [Text.StringBuilder]$PublicFunctionCode = ''
-    $UsingLines | Select-Object -Unique | Foreach-Object {
-        [void]$PublicFunctionCode.AppendLine($PSItem)
+        Write-Verbose "Discovered public function $functionName in $fileItem"
+        Write-Output $functionName
     }
-    [void]$PublicFunctionCode.AppendLine($PublicFunctionCodeWithoutUsing)
-
-    [ScriptBlock]::Create($PublicFunctionCode).AST.EndBlock.Statements | Where-Object {
-        $PSItem -is [Management.Automation.Language.FunctionDefinitionAst]
-    } | Foreach-Object Name
 }
