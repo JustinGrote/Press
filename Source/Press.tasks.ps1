@@ -67,9 +67,13 @@ Task Press.Test.Pester @{
 }
 
 #TODO: Inputs/Outputs
-Task Press.ReleaseNotes {
+Task Press.ReleaseNotes Press.SetModuleVersion, {
     #TODO: Replace OutDir with ReleaseNotes or Changelog Specific PSSetting
-    Build-PressReleaseNotes @commonParams -Path $PressSetting.General.ProjectRoot -Destination (Join-Path $PressSetting.Build.OutDir 'RELEASENOTES.MD')
+    $Version = Get-Content (Join-Path $PressSetting.Build.OutDir '.gitversion')
+    | ConvertFrom-Json
+    | ForEach-Object NuGetVersionV2
+    
+    Build-PressReleaseNotes @commonParams -Path $PressSetting.General.ProjectRoot -Destination (Join-Path $PressSetting.Build.OutDir 'RELEASENOTES.MD') -Version $Version
 }
 
 #TODO: Inputs/Outputs
