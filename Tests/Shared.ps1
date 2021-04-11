@@ -2,8 +2,13 @@
 #requires -Modules @{ModuleName='Pester';ModuleVersion='5.1.1'}
 BeforeAll {
     $SCRIPT:Mocks = Resolve-Path $PSScriptRoot/Mocks
-    Import-Module $PSScriptRoot/../Source/Press.psm1 -Force -Global
+    Write-Verbose 'Loading Module to Test'
+    #TODO: Remove Press Hardcoding
+    Import-Module $PSScriptRoot/../Source/Press.psm1 -Force -Global 4>$null
+    function JsonMock ($Path) {
+        Get-Content -Raw (Join-Path $SCRIPT:Mocks $Path) | ConvertFrom-Json
+    }
 }
 AfterAll {
-    Import-Module $PSScriptRoot/../Source/Press.psd1 -Force -Global
+    Import-Module $PSScriptRoot/../Source/Press.psd1 -Force -Global 4>$null
 }

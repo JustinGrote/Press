@@ -10,7 +10,7 @@ function Set-Version {
         #Version to set for the module
         [Version][Parameter(Mandatory)]$Version,
         #Prerelease tag to add to the module, if any
-        [String][Parameter(Mandatory)]$PreRelease
+        [AllowEmptyString()][String]$PreRelease
     )
     #Default is to update version so no propertyname specified
     $Manifest = Import-PowerShellDataFile $Path
@@ -20,12 +20,16 @@ function Set-Version {
         Write-Verbose "Current Manifest Version $currentVersion doesn't match $Version. Updating..."
         BuildHelpers\Update-Metadata -Path $Path -PropertyName ModuleVersion -Value $Version
     }
-    
+
     # $currentPreRelease = BuildHelpers\Get-Metadata -Path $Path -PropertyName 'PreRelease'
-    $currentPreRelease = $Manifest.privatedata.psdata.prerelease
-    if ($currentPreRelease -ne $PreRelease)  {
-        Write-Verbose "Current Manifest Prerelease Tag $currentPreRelease doesn't match $PreRelease. Updating..."
-        #HACK: Do not use update-modulemanifest because https://github.com/PowerShell/PowerShellGetv2/issues/294
-        BuildHelpers\Update-Metadata -Path $Path -PropertyName PreRelease -Value $PreRelease
+    if ($PreRelease) {
+        $currentPreRelease = $Manifest.privatedata.psdata.prerelease
+        if ($currentPreRelease -ne $PreRelease) {
+            Write-Verbose "Current Manifest Prerelease Tag $currentPreRelease doesn't match $PreRelease. Updating..."
+            #HACK: Do not use update-modulemanifest because https://github.com/PowerShell/PowerShellGetv2/issues/294
+            Update-Metadata -Path $Path -PropertyName PreRelease -Value $PreRelease
+        }
+    } else {
+        Update-Metadata -Path $Path -PropertyName PreRelease -Value ''
     }
 }

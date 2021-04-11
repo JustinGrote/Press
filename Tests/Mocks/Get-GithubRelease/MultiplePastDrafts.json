@@ -1,0 +1,66 @@
+[
+    {
+        "ReleaseID": 41097540,
+        "Name": "Pester",
+        "tag_name": "v2.1.5",
+        "Draft": true,
+        "created_at": "2018-01-01T00:00:00",
+        "published_at": ""
+    },
+    {
+        "ReleaseID": 51097999,
+        "Name": "Pester",
+        "tag_name": "v2.1.5",
+        "Draft": true,
+        "created_at": "2018-01-01T04:00:00",
+        "published_at": ""
+    },
+    {
+        "ReleaseID": 55448233,
+        "Name": "Pester",
+        "tag_name": "v2.0.2",
+        "Draft": true,
+        "created_at": "2018-01-01T00:00:00",
+        "published_at": ""
+    },
+    {
+        "ReleaseID": 55448333,
+        "Name": "Pester",
+        "tag_name": "v2.0.1",
+        "Draft": true,
+        "created_at": "2019-01-01T00:00:00",
+        "published_at": ""
+    },
+    {
+        "ReleaseID": 55548833,
+        "Name": "Pester",
+        "tag_name": "v1.3.1",
+        "Draft": true,
+        "created_at": "2018-01-01T00:00:00",
+        "published_at": ""
+    },
+    {
+        "ReleaseID": 55548855,
+        "Name": "Pester",
+        "tag_name": "v3.3.1",
+        "Draft": true,
+        "created_at": "2018-01-01T00:00:00",
+        "published_at": ""
+    },
+    {
+        "ReleaseID": 55549955,
+        "Name": "Pester",
+        "tag_name": "v3.3.1",
+        "Draft": false,
+        "created_at": "2018-01-01T00:00:00",
+        "published_at": "2018-01-01T00:00:00"
+    },
+    {
+        "ReleaseID": 55848955,
+        "Name": "Pester",
+        "tag_name": "v2.0.1",
+        "Draft": false,
+        "created_at": "2018-01-01T00:00:00",
+        "published_at": "2019-01-01T00:00:00"
+    }
+]

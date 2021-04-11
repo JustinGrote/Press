@@ -109,7 +109,6 @@ function ConvertTo-ReleaseNotesMarkdown {
         [String]$Version
     )
     begin {
-        Import-Module MarkdownPS -ErrorAction Stop
         $markdown = [Text.StringBuilder]::new()
         
         #Top header

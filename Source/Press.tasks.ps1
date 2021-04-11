@@ -31,6 +31,7 @@ Task Press.Version @{
         #Calculate a new version on every commit. Ignore for Github Actions due to PRs
         if (-not $ENV:GITHUB_ACTIONS) {
             Join-Path "$BuildRoot\.git\refs\heads\" $PressSetting.BuildEnvironment.BranchName
+            Get-ChildItem "$BuildRoot\.git\refs\tags\"
         }
         #META: Gitversion Config
         #FIXME: This should probably be in settings
@@ -110,6 +111,7 @@ Task Press.SetModuleVersion {
     $SCRIPT:GitVersionInfo = Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json
     Set-PressVersion @commonParams -Version $GitVersionInfo.MajorMinorPatch -PreRelease $GitVersionInfo.NuGetPreReleaseTagV2 -Path (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1")
     if ($ENV:GITHUB_ACTIONS) {
+        "::set-output name=version::$($SCRIPT:GitVersionInfo.MajorMinorPatch)"
         "::set-output name=nugetVersion::$($SCRIPT:GitVersionInfo.NugetVersionV2)"
         #TODO: Move elsewhere?
         "::set-output name=moduleName::$(Split-Path $PressSetting.General.ModuleName -Leaf)"
@@ -153,6 +155,25 @@ Task Press.Package.Nuget @{
         Remove-Item "$(Split-Path $Outputs)\*.nupkg"
         New-PressNugetPackage @commonParams -Path $PressSetting.Build.ModuleOutDir -Destination $PressSetting.Build.OutDir
     }
+}
+
+Task Press.UpdateGitHubRelease {
+    if (-not $ENV:GITHUB_ACTIONS) {
+        throw 'This task is only meant to be run inside Github Actions. You can still use Update-PressGithubRelease manually'
+    }
+    $VerbosePreference = 'continue'
+    $ModuleOutManifest = (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1")
+    [String[]]$ArtifactPaths = (Get-Item "$($PressSetting.Build.OutDir)\*.zip","$($PressSetting.Build.OutDir)\*.nupkg")
+    $Owner,$Repository = $ENV:GITHUB_REPOSITORY -split '/'
+    $updateGHRParams = @{
+        Owner        = $Owner
+        Repository   = $Repository
+        AccessToken  = $ENV:GITHUB_TOKEN
+        Version      = Get-Metadata -Path $ModuleOutManifest -PropertyName ModuleVersion
+        Body         = Get-Metadata -Path $ModuleOutManifest -PropertyName ReleaseNotes
+        ArtifactPath = $ArtifactPaths
+    }
+    Update-PressGithubRelease @updateGHRParams
 }
 
 #region MetaTasks

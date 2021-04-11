@@ -7,6 +7,11 @@ on:
       - main
       - ci
       - production
+    tags:
+      - '*'
+  release: 
+    types: 
+      - published
   pull_request:
     branches:
       - master
@@ -64,7 +69,7 @@ jobs:
         shell: pwsh
         run: |
           if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
-          ./build.ps1 '.,Package'
+          ./build '.,Package'
 
       - name: 📦 Capture Powershell Module
         uses: actions/upload-artifact@v2
@@ -88,6 +93,15 @@ jobs:
       - if: always() && runner.os != 'Windows' && steps.debugStatus.outputs.runnerDebug
         name: 🐛 Debug via SSH if ACTIONS_RUNNER_DEBUG secret is set
         uses: lhotari/action-upterm@v1
+      
+      #TODO: Move to dedicated function
+      - name: 📦 Update Draft Github Release
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/ci'
+        shell: pwsh
+        run: |
+          ./build 'Press.UpdateGitHubRelease'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test:
     name: 🧪 Test
@@ -154,7 +168,7 @@ jobs:
 
   deploy:
     name: 🚀 Deploy
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-20.04
     environment: Powershell Gallery
     needs:
@@ -167,9 +181,7 @@ jobs:
           name: PSModule
           #FIXME: Remove Hardcoding
           path: BuildOutput/Press
-      - name: 🚀 Publish Module to PowerShell Gallery
-        uses: pcgeek86/publish-powershell-module-action@v19
-        id: publish-module
-        with:
-          modulePath: BuildOutput/Press
-          NuGetApiKey: ${{ secrets.PS_GALLERY_KEY }}
+      # - name: 🚀 Publish Module to PowerShell Gallery
+      #   shell: pwsh
+      #   run: |
+      #     Publish-Module -Verbose -Name $PWD/BuildOutput/Press -NugetApiKey ${{ secrets.PS_GALLERY_KEY }}
