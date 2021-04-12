@@ -26,11 +26,20 @@ function Get-Version {
         }
     }
 
+    #TODO: Direct Json check maybe?
+    [String]$gitVersionToolCheck = & dotnet tool list
+    if ($gitVersionToolCheck -notlike "*gitversion.tool*$GitVersionVersion*") {
+        & dotnet tool uninstall gitversion.tool | Out-Null
+        [String]$gitversionInstall = & dotnet tool install gitversion.tool --version $GitVersionVersion
+        if ($gitVersionInstall -notlike '*gitversion.tool*was successfully installed*') {
+            throw "Failed to install gitversion local tool with dotnet: $gitVersionInstall"
+        }
+    }
     #Output from a command is String in Windows and Object[] in Linux. Cast to string to normalize.
     [String]$dotnetToolRestoreStatus = & dotnet tool restore *>&1
     $dotnetToolMatch = "*Tool 'gitversion.tool' (version '$GitVersionVersion') was restored.*"
     if ($dotnetToolRestoreStatus -notlike $dotnetToolMatch) {
-        throw 'GitVersion dotnet tool was not found. Ensure you have a .NET manifest'
+        throw "GitVersion dotnet tool was not found. Ensure you have a .NET manifest. Message: $dotnetToolRestoreStatus"
     }
 
     #Reference Dotnet Local Tool directly rather than trying to go through .NET EXE

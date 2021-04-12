@@ -56,6 +56,7 @@ function New-NugetPackage {
         } else {
             $CurrentProgressPreference = $GLOBAL:ProgressPreference
             $GLOBAL:ProgressPreference = 'SilentlyContinue'
+            #TODO: Allow requiredmodules references in nuget packages
             Publish-Module -Repository $tempRepositoryName -Path $Path -Force -Verbose:$false
             $GLOBAL:ProgressPreference = $CurrentProgressPreference
         }

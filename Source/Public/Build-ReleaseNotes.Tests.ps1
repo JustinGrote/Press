@@ -16,7 +16,7 @@ Describe 'Build-ReleaseNotes' {
             Pop-Location
         }
         It 'Processes logs successfully' {
-            $markdownResult = Build-ReleaseNotes -Path $PesterProject
+            [String]$markdownResult = Build-ReleaseNotes -Path $PesterProject
             $markdownResult | Should -Match 'New Features'
         }
     }

@@ -21,15 +21,22 @@ function Set-Version {
         BuildHelpers\Update-Metadata -Path $Path -PropertyName ModuleVersion -Value $Version
     }
 
-    # $currentPreRelease = BuildHelpers\Get-Metadata -Path $Path -PropertyName 'PreRelease'
+    $currentPreRelease = $Manifest.privatedata.psdata.prerelease
     if ($PreRelease) {
-        $currentPreRelease = $Manifest.privatedata.psdata.prerelease
         if ($currentPreRelease -ne $PreRelease) {
             Write-Verbose "Current Manifest Prerelease Tag $currentPreRelease doesn't match $PreRelease. Updating..."
             #HACK: Do not use update-modulemanifest because https://github.com/PowerShell/PowerShellGetv2/issues/294
-            Update-Metadata -Path $Path -PropertyName PreRelease -Value $PreRelease
+            #TODO: AutoCreate prerelease metadata
+            try {
+                Update-Metadata -Path $Path -PropertyName PreRelease -Value $PreRelease
+            } catch {
+                if ($PSItem -like "Can't find*") {
+                    throw 'Could not find the Prerelease field in your source manifest file. You must add this under PrivateData/PSData first'
+                }
+            }
+            
         }
-    } else {
+    } elseif ($CurrentPreRelease -ne '') {
         Update-Metadata -Path $Path -PropertyName PreRelease -Value ''
     }
 }
