@@ -29,3 +29,8 @@ Task Press.CopyModuleFiles @{
         $PressSetting.OutputModuleManifest = $copyResult.OutputModuleManifest
     }
 }
+
+Task CopyRequiredModules -After Press.CopyModuleFiles {
+    $PressConfigDir = New-Item -ItemType Directory "$($PressSetting.Build.ModuleOutDir)/.config" -Force
+    Copy-Item "$($PressSetting.General.SrcRootDir)/.config/RequiredModules.psd1" $PressConfigDir
+}
