@@ -17,7 +17,7 @@ Enter-Build {
 
     if (Test-Path $RequiredModuleManifest) {
         $InstallRequiredModuleScript = Join-Path $RequireModuleScript.InstalledLocation 'Install-RequiredModule.ps1'
-        $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $RequiredModuleManifest -Import -ErrorAction Stop -Verbose -WarningAction SilentlyContinue
+        $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $RequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue
         $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
         New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
     }
@@ -95,7 +95,7 @@ Task Press.Test.Pester {
                 Write-Host -Fore Green '===Detected Visual Studio Code, Displaying Pester Test Links==='
                 $Configuration.Debug.ShowNavigationMarkers = $true
             }
-            $Configuration.Output.Verbosity = 'Diagnostic'
+            $Configuration.Output.Verbosity = 'Detailed'
             $Configuration.Run.PassThru = $true
             $Configuration.Run.Path = $Path
             $Configuration.CodeCoverage.Enabled = $false

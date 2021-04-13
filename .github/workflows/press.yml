@@ -139,22 +139,26 @@ jobs:
             ~/.local/share/Press
             ~/AppData/Local/Press
             ~/.nuget/packages/gitversion.tool
-          key: test-${{ matrix.os }}-${{ hashFiles('Source/.config/Requirements.psd1') }}
+          key: test-${{ matrix.os }}-${{ hashFiles('Source/.config/RequiredModules.psd1') }}
 
       #Meta: We don't test on 5.1 for using the module
       - name: ➕ Restore Built Powershell Module
         uses: actions/download-artifact@v2
         with:
           name: PSModule
-          #FIXME: Remove Hardcoding
-          path: BuildOutput/Press
+          #TODO: Pull this from environment setup
+          path: BuildOutput/${{ github.event.repository.name }}
 
       #TODO: Remove redundancy when https://github.com/actions/runner/issues/444 is implemented
       - name: 🧪 Test Powershell 7+
         shell: pwsh
         run: |
           if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
-          $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
+          #Press Meta
+          if ('${{ github.event.repository.name }}' -eq 'Press') {
+            $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
+          }
+
           . ./build.ps1 'Test'
 
       #Meta: We don't test on 5.1 for using the module for Press
@@ -163,7 +167,10 @@ jobs:
         shell: powershell
         run: |
           if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
-          $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
+          #Press Meta
+          if ('${{ github.event.repository.name }}' -eq 'Press') {
+            $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
+          }
           . ./build.ps1 'Test'
 
   deploy:
@@ -179,8 +186,8 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: PSModule
-          #FIXME: Remove Hardcoding
-          path: BuildOutput/Press
+          #TODO: Get BuildOutput Config Path
+          path: BuildOutput/${{ github.event.repository.name }}
       # - name: 🚀 Publish Module to PowerShell Gallery
       #   shell: pwsh
       #   run: |

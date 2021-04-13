@@ -23,7 +23,7 @@ function Test-Pester {
             Write-Host -Fore Green '===Detected Visual Studio Code, Displaying Pester Test Links==='
             $Configuration.Debug.ShowNavigationMarkers = $true
         }
-        $Configuration.Output.Verbosity = 'Diagnostic'
+        $Configuration.Output.Verbosity = 'Detailed'
         $Configuration.Run.PassThru = $true
         $Configuration.Run.Path = $Path
         $Configuration.CodeCoverage.Enabled = $false
