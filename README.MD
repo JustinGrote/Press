@@ -18,3 +18,22 @@ Thou shalt:
 See the project section for the roadmap
 
 More to follow...
+
+# Workflows
+Press supports the following workflows:
+
+## Git Development Only
+You can use Press to automate the build, test and deploy settings for any Powershell module in a git repository. Press will
+use your commit messages to generate release notes, build zip and nupkg versions of your module. To publish a release,
+tag a commit with the version you want to release e.g. v2.0.3 and run the Deploy task.
+
+## GitHub Integrated
+Press has tight integration with Github, including Github Actions, Releases, and Environments.
+
+Here is what a typical workflow would look like:
+1. Start a new repository and enable Press. Your environment is now automatically at v0.0.1
+2. Create a feature branch 'myfeature' and add a commit. This commit is now at v0.0.2-myfeature0001
+3. Create a pull request to your main branch of your feature, it will automatically be checked and tested.
+4. Merge the feature request to your main branch and ensure the PR message has the feature emoji ✨ or feat:. Your main branch is now automatically at v0.0.2-beta0001 and a release has automatically been drafted for you in GitHub, and if enabled, will be made available on the Powershell Gallery
+5. Follow steps 2-4 again. Your main branch is now automatically at v0.0.2-beta0002 and the draft release has been updated with the latest release notes. If enabled, your beta version will automatically be made available on the Powershell Gallery
+6. Go the the release draft and click "Publish". Your project is now at v0.0.2 and your latest commit will be tagged as such, and a production version matching your release will be made available on the Powershell Gallery.
