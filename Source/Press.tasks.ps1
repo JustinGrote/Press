@@ -19,10 +19,10 @@ Enter-Build {
     if (Test-Path $RequiredModuleManifest) {
         $InstallRequiredModuleScript = Join-Path $RequireModuleScript.InstalledLocation 'Install-RequiredModule.ps1'
         $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $RequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue -Confirm:$false
-        $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
-        New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
     }
 
+    $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
+    New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
 }
 
 Task Press.Version @{
