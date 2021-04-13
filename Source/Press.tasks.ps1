@@ -6,24 +6,23 @@ $commonParams = @{
 
 Enter-Build {
     #TODO: Make this faster by not relying on PSGetv2
-    @('PSDepend').foreach{
-        try {
-            Write-Verbose "Importing $PSItem"
-            Import-Module $PSItem -Global
-        } catch [IO.FileNotFoundException] {
-            if ($PSItem.FullyQualifiedErrorId -ne 'Modules_ModuleNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand') {
-                throw $PSItem
-            }
-            Write-Verbose "Installing $PSItem"
-            Install-Module -Scope CurrentUser -Force PSDepend
-        }
+    #TODO: Make this a separate task and have incremental build support
+    $RequireModuleScript = try {
+        Get-InstalledScript 'Install-RequiredModule' -ErrorAction Stop
+    } catch {
+        Install-Script -Force -AcceptLicense Install-RequiredModule -PassThru -ErrorAction Stop
     }
-    Write-Verbose "Invoking $PSItem"
-    $PSDependConfigRoot = Resolve-Path "$PSScriptRoot\.config"
-    Invoke-PSDepend -Path $PSDependConfigRoot -Force
+    #TODO: Move this to settings
+    $RequiredModuleManifest = "$PSScriptRoot\.config\RequiredModules.psd1"
 
-    $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
-    New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
+    $ProgressPreference = 'SilentlyContinue'
+    if (Test-Path $RequiredModuleManifest) {
+        $InstallRequiredModuleScript = Join-Path $RequireModuleScript.InstalledLocation 'Install-RequiredModule.ps1'
+        $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $RequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue -Confirm:$false
+        $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
+        New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
+    }
+
 }
 
 Task Press.Version @{
@@ -38,18 +37,30 @@ Task Press.Version @{
         [String]$SCRIPT:GitVersionConfig = ''
         if ($PressSetting.General.ModuleName -eq 'Press') {
             $SCRIPT:GitVersionConfig = Join-Path $PressSetting.General.SrcRootDir 'GitVersion.default.yml'
-        } else {
+        }
+
+        #TODO: Move to Settings
+        $GitVersionConfigPath = Join-Path $PressSetting.General.SrcRootDir 'Gitversion.yml'
+        if (Test-Path $GitVersionConfigPath) {
             $SCRIPT:GitVersionConfig = Join-Path $PressSetting.General.SrcRootDir 'Gitversion.yml'
         }
 
         #Gitversion config is optional but we want to detect changes if it exists
-        Get-Item $GitVersionConfig -ErrorAction SilentlyContinue
+        if ($GitVersionConfig) {
+            Get-Item $GitVersionConfig -ErrorAction SilentlyContinue
+        }
+        
     }
     Outputs = {
         "$($PressSetting.Build.OutDir)\.gitversion"
     }
     Jobs    = {
-        $SCRIPT:GitVersionInfo = Get-PressVersion -ProjectPath $buildRoot -GitVersionConfigPath $SCRIPT:GitVersionConfig @commonParams
+        $pressVersionParams = $commonParams.Clone()
+        if ($SCRIPT:GitVersionConfig) {
+            $pressVersionParams.GitVersionConfigPath = $SCRIPT:GitVersionConfig
+        }
+
+        $SCRIPT:GitVersionInfo = Get-PressVersion @pressVersionParams -ProjectPath $buildRoot
         $SCRIPT:GitVersionInfo | ConvertTo-Json > $Outputs
     }
 }
@@ -58,13 +69,64 @@ Task Press.Clean {
     Invoke-PressClean -buildOutputPath $PressSetting.Build.OutDir -buildProjectName $PressSetting.General.ModuleName @commonParams
 }
 
-Task Press.Test.Pester @{
-    Inputs  = { [String[]](Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir) }
-    Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
-    Jobs    = {
-        $pesterResult = Test-PressPester -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
-        Assert $pesterResult 'No Pester Result produced'
+Task Press.Test.Pester {
+
+    function Test-Pester {
+        [CmdletBinding(DefaultParameterSetName = 'Default')]
+        param (
+            #Path where the Pester tests are located
+            [Parameter(Mandatory,ParameterSetName = 'Default')][String]$Path,
+            #Path where the coverage files should be output. Defaults to the build output path.
+            [Parameter(Mandatory,ParameterSetName = 'Default')][String]$OutputPath,
+            #A PesterConfiguration to use instead of the intelligent defaults. For advanced usage only.
+            [Parameter(ParameterSetName = 'Configuration')]$Configuration
+        )
+        #Load Pester Just-In-Time style, cannot use a requires because of module compilation
+        Get-Module pester -ErrorAction SilentlyContinue | Where-Object version -LT '5.0.0' | Remove-Module -Force
+        Import-Module Pester -MinimumVersion '5.0.0' | Write-Verbose
+        #We can't do this in the param block because pester and its classes may not be loaded yet.
+        [PesterConfiguration]$Configuration = $Configuration
+    
+        #FIXME: Allow for custom configurations once we figure out how to serialize them into a job
+        if ($Configuration) { throw [NotSupportedException]'Custom Pester Configurations temporarily disabled while sorting out best way to run them in isolated job' }
+        if (-not $Configuration) {
+            $Configuration = @{}
+            #If we are in vscode, add the VSCodeMarkers
+            if ($host.name -match 'Visual Studio Code') {
+                Write-Host -Fore Green '===Detected Visual Studio Code, Displaying Pester Test Links==='
+                $Configuration.Debug.ShowNavigationMarkers = $true
+            }
+            $Configuration.Output.Verbosity = 'Detailed'
+            $Configuration.Run.PassThru = $true
+            $Configuration.Run.Path = $Path
+            $Configuration.CodeCoverage.Enabled = $false
+            $Configuration.CodeCoverage.OutputPath = "$OutputPath/CodeCoverage.xml"
+            $Configuration.TestResult.Enabled = $true
+            $Configuration.TestResult.OutputPath = "$OutputPath/TEST-Results.xml"
+            #Exclude the output folder in case we dcopied any tests there to avoid duplicate testing. This should generally only matter for "meta" like PowerForge
+            #FIXME: Specify just the directory instead of a path search when https://github.com/pester/Pester/issues/1575 is fixed
+            $Configuration.Run.ExcludePath = [String[]](Get-ChildItem -Recurse $OutputPath -Include '*.Tests.ps1')
+    
+        }
+    
+        $TestResults = Invoke-Pester -Configuration $Configuration
+        
+        if ($TestResults.Result -ne 'Passed') {
+            throw "Failed $($TestResults.FailedCount) tests"
+        }
+        return $TestResults
     }
+
+    $pesterResult = Test-Pester -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
+    Assert $pesterResult 'No Pester Result produced'
+    # Inputs  = { [String[]](Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir) }
+    # #TODO: Validate the output and throw error unless a force setting is set
+    # #BUG: Tests will proceed currently if nothing was changed
+    # Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
+    # Jobs    = {
+    #     $pesterResult = Test-PressPester -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
+    #     Assert $pesterResult 'No Pester Result produced'
+    # }
 }
 
 #TODO: Inputs/Outputs
@@ -87,8 +149,8 @@ Task Press.SetReleaseNotes Press.ReleaseNotes, {
 
     #Quirk: Update-ModuleManifest strips line feeds so we need to do the same when comparing
     #TODO: Better way to compare maybe?
-    $ReleaseNotesCompare = [text.encoding]::UTF8.GetBytes($ReleaseNotes) | Where-Object { $_ -ne 10 }
-    $ReleaseNotesNewCompare = [text.encoding]::UTF8.GetBytes($newReleaseNotes) | Where-Object { $_ -ne 10 }
+    $ReleaseNotesCompare = [text.encoding]::UTF8.GetBytes($ReleaseNotes) | Where-Object { $_ -notin 10,13 }
+    $ReleaseNotesNewCompare = [text.encoding]::UTF8.GetBytes($newReleaseNotes) | Where-Object { $_ -notin 10,13 }
     if (-not $ReleaseNotes -or (Compare-Object $ReleaseNotesCompare $ReleaseNotesNewCompare)) {
         #BUG: Do not use update-modulemanifest because https://github.com/PowerShell/PowerShellGetv2/issues/294
         BuildHelpers\Update-Metadata -Path $ModuleOutManifest -Property ReleaseNotes -Value $newReleaseNotes.Trim()
@@ -96,16 +158,26 @@ Task Press.SetReleaseNotes Press.ReleaseNotes, {
 }
 
 #FIXME: Implement non-press version
-# Task Press.CopyModuleFiles @{
-#     Inputs  = Get-ChildItem -File -Recurse "$BuildRoot\Source"
-#     Outputs = Get-ChildItem -File -Recurse "$BuildRoot\BuildOutput\Press"
-#     #(Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
+Task Press.CopyModuleFiles @{
+    Inputs  = { 
+        Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir
+    }
+    Outputs = { 
+        $buildItems = Get-ChildItem -File -Recurse $PressSetting.Build.ModuleOutDir
+        if ($buildItems) { $buildItems } else { 'EmptyBuildOutputFolder' } 
+    }
+    #(Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
+    Jobs    = {
+        Remove-BuildItem $PressSetting.Build.ModuleOutDir
 
-#     Jobs    = {
-#         $copyResult = Copy-PressModuleFiles -Destination "$BuildRoot\BuildOutput\Press" @commonParams
-#         $PressSetting.OutputModuleManifest = $copyResult.OutputModuleManifest
-#     }
-# }
+        $copyResult = Copy-PressModuleFiles @commonParams `
+            -Destination $PressSetting.Build.ModuleOutDir `
+            -PSModuleManifest $PressSetting.BuildEnvironment.PSModuleManifest
+
+        $PressSetting.OutputModuleManifest = $copyResult.OutputModuleManifest
+    }
+}
+
 
 Task Press.SetModuleVersion {
     $SCRIPT:GitVersionInfo = Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json
@@ -165,12 +237,13 @@ Task Press.UpdateGitHubRelease {
     $ModuleOutManifest = (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1")
     [String[]]$ArtifactPaths = (Get-Item "$($PressSetting.Build.OutDir)\*.zip","$($PressSetting.Build.OutDir)\*.nupkg")
     $Owner,$Repository = $ENV:GITHUB_REPOSITORY -split '/'
+    $Manifest = Import-PowerShellDataFile -Path $ModuleOutManifest
     $updateGHRParams = @{
         Owner        = $Owner
         Repository   = $Repository
         AccessToken  = $ENV:GITHUB_TOKEN
-        Version      = Get-Metadata -Path $ModuleOutManifest -PropertyName ModuleVersion
-        Body         = Get-Metadata -Path $ModuleOutManifest -PropertyName ReleaseNotes
+        Version      = $Manifest.ModuleVersion
+        Body         = $Manifest.PrivateData.PSData.ReleaseNotes
         ArtifactPath = $ArtifactPaths
     }
     Update-PressGithubRelease @updateGHRParams

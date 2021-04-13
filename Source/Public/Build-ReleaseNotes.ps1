@@ -34,10 +34,10 @@ function Get-MessagesSinceLastTag ([String]$Path) {
         Push-Location -StackName GetMessagesSinceLastTag -Path $Path
         [String]$lastVersionTag = & git tag --list 'v*' --sort="version:refname" --merged | Select-Object -Last 1
         if (-not $lastVersionTag) {
-            Write-Verbose 'No version tags (vX.X.X) found in this repository. Starting'
+            Write-Verbose 'No version tags (vX.X.X) found in this repository, using all commits to generate release notes'
             $lastVersionTag = '--all'
         }
-        [String]$lastVersionCommit = & git rev-list --reverse --abbrev-commit $lastVersionTag | Select-Object -First 1
+        [String]$lastVersionCommit = & git rev-list -n 1 $lastVersionTag
         #The surrounding spaces are to preserve indentation in Markdown
         #TOOD: Better Parsing of this
         [String]$gitLogResult = (& git log --pretty=format:"|||%h||%B" "$lastVersionCommit..") -join "`n"
