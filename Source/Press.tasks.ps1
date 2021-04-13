@@ -15,8 +15,10 @@ Enter-Build {
     #TODO: Move this to settings
     $RequiredModuleManifest = "$PSScriptRoot\.config\RequiredModules.psd1"
 
+    $ProgressPreference = 'SilentlyContinue'
     if (Test-Path $RequiredModuleManifest) {
         $InstallRequiredModuleScript = Join-Path $RequireModuleScript.InstalledLocation 'Install-RequiredModule.ps1'
+        $PSDefaultParameterValues['Install-Module:Force'] = $true
         $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $RequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue
         $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
         New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
