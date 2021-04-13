@@ -32,7 +32,13 @@ function Build-ReleaseNotes {
 function Get-MessagesSinceLastTag ([String]$Path) {
     try {
         Push-Location -StackName GetMessagesSinceLastTag -Path $Path
-        [String]$lastVersionTag = & git tag --list 'v*' --sort="version:refname" --merged | Select-Object -Last 1
+        #If this is a release tag, the release notes should be everything since the last release tag
+        [String]$currentCommitTag = try {
+            & git describe --exact-match --tags 2>$null
+        } catch {}
+        [String]$lastVersionTag = & git tag --list 'v*' --sort="version:refname" --merged
+        | Where-Object { $PSItem -ne $currentCommitTag }
+        | Select-Object -Last 1
         if (-not $lastVersionTag) {
             Write-Verbose 'No version tags (vX.X.X) found in this repository, using all commits to generate release notes'
             $lastVersionTag = '--all'
