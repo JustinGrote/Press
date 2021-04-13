@@ -13,16 +13,25 @@ Enter-Build {
         Install-Script -Force -AcceptLicense Install-RequiredModule -PassThru -ErrorAction Stop
     }
     #TODO: Move this to settings
-    $RequiredModuleManifest = "$PSScriptRoot\.config\RequiredModules.psd1"
 
     $ProgressPreference = 'SilentlyContinue'
-    if (Test-Path $RequiredModuleManifest) {
-        $InstallRequiredModuleScript = Join-Path $RequireModuleScript.InstalledLocation 'Install-RequiredModule.ps1'
-        $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $RequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue -Confirm:$false
-    }
+
+    #Install Press Prererquisites
+    $InstallRequiredModuleScript = Join-Path $RequireModuleScript.InstalledLocation 'Install-RequiredModule.ps1'
+    $PressRequiredModuleManifest = "$PSScriptRoot\.config\RequiredModules.psd1"
+    $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $PressRequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue -Confirm:$false
 
     $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
+
+    #TODO: Move this to PSSetting
+    $customModuleManifest = "$BuildRoot/.config/RequiredModules.psd1"
+    if (Test-Path $customModuleManifest) {
+        Write-Verbose "Custom Required Modules detected at $customModuleManifest, loading..."
+        $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $customModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue -Confirm:$false
+    }
+
     New-Item -ItemType Directory -Path $PressSetting.Build.OutDir -Force | Out-Null
+
 }
 
 Task Press.Version @{
