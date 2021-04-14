@@ -59,6 +59,8 @@ Task Press.Version @{
             Get-Item $GitVersionConfig -ErrorAction SilentlyContinue
         }
         
+        #Include default gitversion config as well
+        Resolve-Path $PSScriptRoot\GitVersion.default.yml
     }
     Outputs = {
         "$($PressSetting.Build.OutDir)\.gitversion"
