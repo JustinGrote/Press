@@ -13,6 +13,6 @@ Task CopyGitVersionAndTasks -After Press.CopyModuleFiles {
 }
 
 Task CopyRequiredModules -After Press.CopyModuleFiles {
-    $PressConfigDir = New-Item -ItemType Directory "$($PressSetting.Build.ModuleOutDir)/.config" -Force
-    Copy-Item "$($PressSetting.General.SrcRootDir)/.config/RequiredModules.psd1" $PressConfigDir
+    $PressConfigDir = New-Item -ItemType Directory "$($PressSetting.Build.ModuleOutDir)/Config" -Force
+    Copy-Item "$($PressSetting.General.SrcRootDir)/Config/RequiredModules.psd1" $PressConfigDir
 }

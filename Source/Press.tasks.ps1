@@ -18,7 +18,7 @@ Enter-Build {
 
     #Install Press Prererquisites
     $InstallRequiredModuleScript = Join-Path $RequireModuleScript.InstalledLocation 'Install-RequiredModule.ps1'
-    $PressRequiredModuleManifest = "$PSScriptRoot\.config\RequiredModules.psd1"
+    $PressRequiredModuleManifest = "$PSScriptRoot\Config\RequiredModules.psd1"
     $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $PressRequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue -Confirm:$false
 
     $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
