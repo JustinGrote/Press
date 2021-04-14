@@ -192,7 +192,7 @@ jobs:
         shell: pwsh
         run: |
           if (-not '${{ secrets.PS_GALLERY_KEY }}') {throw 'You need to configure a PS_GALLERY_KEY secret for this environment with your Powershell Gallery API Key'}
-          Publish-Module -Verbose -Name $PWD/BuildOutput/Press -NugetApiKey ${{ secrets.PS_GALLERY_KEY }}
+          Publish-Module -Verbose -Name $PWD/BuildOutput/${{ github.event.repository.name }} -NugetApiKey ${{ secrets.PS_GALLERY_KEY }}
 
   deploy:
     name: 🚀 Deploy
@@ -213,4 +213,4 @@ jobs:
         shell: pwsh
         run: |
           if (-not '${{ secrets.PS_GALLERY_KEY }}') {throw 'You need to configure a PS_GALLERY_KEY secret for this environment with your Powershell Gallery API Key'}
-          Publish-Module -Verbose -Name $PWD/BuildOutput/Press -NugetApiKey ${{ secrets.PS_GALLERY_KEY }}
+          Publish-Module -Verbose -Name $PWD/BuildOutput/${{ github.event.repository.name }} -NugetApiKey ${{ secrets.PS_GALLERY_KEY }}
