@@ -1,4 +1,4 @@
--P ubuntu-latest=justingrote/act-pwsh
--P ubuntu-20.04=justingrote/act-pwsh
--P ubuntu-18.04=justingrote/act-pwsh
--P ubuntu-16.04=justingrote/act-pwsh
+-P ubuntu-latest=ghcr.io/justingrote/act-pwsh-dotnet
+-P ubuntu-20.04=ghcr.io/justingrote/act-pwsh-dotnet
+-P ubuntu-18.04=ghcr.io/justingrote/act-pwsh-dotnet
+-P ubuntu-16.04=ghcr.io/justingrote/act-pwsh-dotnet

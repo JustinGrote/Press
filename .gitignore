@@ -13,3 +13,6 @@
 
 #Test Results
 TestExplorerResults.xml
+
+#Put your Github Token here for act
+.secrets
