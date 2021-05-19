@@ -41,12 +41,14 @@ function Get-MessagesSinceLastTag ([String]$Path) {
         | Select-Object -Last 1
         if (-not $lastVersionTag) {
             Write-Verbose 'No version tags (vX.X.X) found in this repository, using all commits to generate release notes'
-            $lastVersionTag = '--all'
+            $lastVersionCommit = $null
+        } else {
+            [String]$lastVersionCommit = (& git rev-list -n 1 $lastVersionTag) + '..'
         }
-        [String]$lastVersionCommit = & git rev-list -n 1 $lastVersionTag
+        
         #The surrounding spaces are to preserve indentation in Markdown
         #TOOD: Better Parsing of this
-        [String]$gitLogResult = (& git log --pretty=format:"|||%h||%B" "$lastVersionCommit..") -join "`n"
+        [String]$gitLogResult = (& git log --pretty=format:"|||%h||%B||%aL" $lastVersionCommit) -join "`n"
     } catch {
         throw
     } finally {
@@ -58,8 +60,35 @@ function Get-MessagesSinceLastTag ([String]$Path) {
         [PSCustomObject]@{
             CommitId   = $logItem[0]
             Message    = $logItem[1].trim()
+            Author     = $logItem[2].trim()
             CommitType = $null
         }
+    }
+}
+
+function Add-CommitIdIfNotPullRequest {
+    [CmdletBinding()]
+    param ( 
+        [Parameter(Mandatory,ValueFromPipeline)]$logEntry
+    )
+    process {
+        if ($logEntry.Message -notmatch '#\d+') {
+            $logEntry.Message = ($logEntry.Message + ' ({0})') -f $logEntry.CommitId
+        }
+        $logEntry
+    }
+}
+
+function Add-PullRequestContributorThanks {
+    [CmdletBinding()]
+    param ( 
+        [Parameter(Mandatory,ValueFromPipeline)]$logEntry
+    )
+    process {
+        if ($logEntry.Author -and $logEntry.Message -match '#\d+') {
+            $logEntry.Message = ($logEntry.Message.trim() + ' - Thanks @{0}!') -f $logEntry.Author
+        }
+        $logEntry
     }
 }
 
@@ -130,7 +159,10 @@ function ConvertTo-ReleaseNotesMarkdown {
 
     end {
         $sortOrder = 'Breaking Changes','New Features','Minor Updates and Bug Fixes','Documentation Updates'
-        $messageGroups = $input 
+        $messages = $input 
+        $messageGroups = $messages
+        | Add-PullRequestContributorThanks
+        | Add-CommitIdIfNotPullRequest
         | Group-Object CommitType
         | Sort-Object {
             #Sort by our custom sort order. Anything that doesn't match moves to the end
