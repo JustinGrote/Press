@@ -84,6 +84,8 @@ function Add-PullRequestContributorThanks {
         [Parameter(Mandatory,ValueFromPipeline)]$logEntry
     )
     process {
+        #TODO: Make ignored committer configurable
+        #TODO: Make PR match configurable
         if ($logEntry.Committer -ne 'noreply' -and #This is the default Github Author 
             $logEntry.Author -ne $logEntry.Committer -and 
             $logEntry.Message -match '#\d+') {
