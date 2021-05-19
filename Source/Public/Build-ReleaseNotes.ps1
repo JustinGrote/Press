@@ -46,9 +46,7 @@ function Get-MessagesSinceLastTag ([String]$Path) {
             [String]$lastVersionCommit = (& git rev-list -n 1 $lastVersionTag) + '..'
         }
         
-        #The surrounding spaces are to preserve indentation in Markdown
-        #TOOD: Better Parsing of this
-        [String]$gitLogResult = (& git log --pretty=format:"|||%h||%B||%aL" $lastVersionCommit) -join "`n"
+        [String]$gitLogResult = (& git log --pretty=format:"|||%h||%B||%aL||%cL" $lastVersionCommit) -join "`n"
     } catch {
         throw
     } finally {
@@ -61,6 +59,7 @@ function Get-MessagesSinceLastTag ([String]$Path) {
             CommitId   = $logItem[0]
             Message    = $logItem[1].trim()
             Author     = $logItem[2].trim()
+            Committer  = $logItem[3].trim()
             CommitType = $null
         }
     }
@@ -85,8 +84,12 @@ function Add-PullRequestContributorThanks {
         [Parameter(Mandatory,ValueFromPipeline)]$logEntry
     )
     process {
-        if ($logEntry.Author -and $logEntry.Message -match '#\d+') {
-            $logEntry.Message = ($logEntry.Message.trim() + ' - Thanks @{0}!') -f $logEntry.Author
+        if ($logEntry.Committer -ne 'noreply' -and #This is the default Github Author 
+            $logEntry.Author -ne $logEntry.Committer -and 
+            $logEntry.Message -match '#\d+') {
+            [string[]]$multiLineMessage = $logEntry.Message.trim().split("`n")
+            $multiLineMessage[0] = ($multiLineMessage[0] + ' - Thanks @{0}!') -f $logEntry.Author
+            $logEntry.Message = $multiLineMessage -join "`n"
         }
         $logEntry
     }
