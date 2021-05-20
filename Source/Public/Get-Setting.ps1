@@ -131,9 +131,7 @@ function Get-Setting {
     # [System.Diagnostics.CodeAnalysis.SuppressMessage('PSUseDeclaredVarsMoreThanAssigments', '')]
     # $catalogVersion = 2
     $PowerConfig = New-PowerConfig
-    $PowerConfig
     | Add-PowerConfigObject -Object $Settings -Depth 5
-    | Out-Null
     
     return Get-PowerConfig $PowerConfig
 }
