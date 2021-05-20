@@ -130,5 +130,10 @@ function Get-Setting {
     # # Windows Server 2008 R2), 2 for SHA2 to support only newer Windows versions.
     # [System.Diagnostics.CodeAnalysis.SuppressMessage('PSUseDeclaredVarsMoreThanAssigments', '')]
     # $catalogVersion = 2
-    return $Settings
+    $PowerConfig = New-PowerConfig
+    $PowerConfig
+    | Add-PowerConfigObject -Object $Settings -Depth 5
+    | Out-Null
+    
+    return Get-PowerConfig $PowerConfig
 }

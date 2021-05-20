@@ -1,3 +1,5 @@
+# PowerConfig update
+Install-Module PowerConfig
 Import-Module -Name $PSScriptRoot\Source\Press.psd1 -Force
 . Press.Tasks
 
