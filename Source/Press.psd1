@@ -121,7 +121,7 @@ PrivateData = @{
         # RequireLicenseAcceptance = $false
 
         # External dependent modules of this module
-        # ExternalModuleDependencies = @()
+        ExternalModuleDependencies = @('PowerConfig')
 
     } # End of PSData hashtable
 
@@ -134,4 +134,3 @@ PrivateData = @{
 DefaultCommandPrefix = 'Press'
 
 }
-
