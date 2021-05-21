@@ -7,6 +7,22 @@ Press is a rewrite of PowerCD with some modern decisions:
 1. Embrace devmoji but still support conventional commits
 1. Expand to github releases, changelog support, artifacts, etc.
 
+## Configuring Press
+Press using the [PowerConfig configuration engine](https://github.com/justingrote/PowerConfig) to manage settings. 
+
+`Get-PressSetting` will show you the default configuration values of the project. You can override these settings currently in two ways:
+
+1. Define an environment variable prefixed by `PRESS_`. For nested settings, separate each level with : or __ (as supported by your OS)
+<br />Example: `$ENV:PRESS_General__ModuleVersion = '3.2.1'`
+<br />Example: `$ENV:PRESS_General__ModuleVersion = '3.2.1'`
+1. Define a `.config/Press.yml` in your repository and override settings there.
+<br />Example:
+    ```yaml
+    General:
+        ModuleVersion: 3.2.1
+    ```
+1. [Advanced] Override the Get-PressSetting task with your custom PowerConfig
+
 
 ## Press Commandments
 
@@ -22,7 +38,7 @@ More to follow...
 # Workflows
 Press supports the following workflows:
 
-## Git Development Only
+## Local Git Development
 You can use Press to automate the build, test and deploy settings for any Powershell module in a git repository. Press will
 use your commit messages to generate release notes, build zip and nupkg versions of your module. To publish a release,
 tag a commit with the version you want to release e.g. v2.0.3 and run the Deploy task.
