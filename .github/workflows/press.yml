@@ -191,7 +191,12 @@ jobs:
       - name: 🚀 Publish Module to PowerShell Gallery
         shell: pwsh
         run: |
+          #TODO: Move to dedicated function
           if (-not '${{ secrets.PS_GALLERY_KEY }}') {throw 'You need to configure a PS_GALLERY_KEY secret for this environment with your Powershell Gallery API Key'}
+          $manifest = Import-PowershellDataFile -Path $PWD/BuildOutput/${{ github.event.repository.name }}/${{ github.event.repository.name }}.psd1
+          foreach ($requiredModule in $manifest.RequiredModules) {
+            Install-Module -Name $requiredModule.ModuleName -RequiredVersion $requiredModule.ModuleVersion -Force
+          }
           Publish-Module -Verbose -Name $PWD/BuildOutput/${{ github.event.repository.name }} -NugetApiKey ${{ secrets.PS_GALLERY_KEY }}
 
   deploy:
@@ -212,5 +217,10 @@ jobs:
       - name: 🚀 Publish Module to PowerShell Gallery
         shell: pwsh
         run: |
+          #TODO: Move to dedicated function
           if (-not '${{ secrets.PS_GALLERY_KEY }}') {throw 'You need to configure a PS_GALLERY_KEY secret for this environment with your Powershell Gallery API Key'}
+          $manifest = Import-PowershellDataFile -Path $PWD/BuildOutput/${{ github.event.repository.name }}/${{ github.event.repository.name }}.psd1
+          foreach ($requiredModule in $manifest.RequiredModules) {
+            Install-Module -Name $requiredModule.ModuleName -RequiredVersion $requiredModule.ModuleVersion -Force
+          }
           Publish-Module -Verbose -Name $PWD/BuildOutput/${{ github.event.repository.name }} -NugetApiKey ${{ secrets.PS_GALLERY_KEY }}

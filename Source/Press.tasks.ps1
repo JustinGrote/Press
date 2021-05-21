@@ -21,7 +21,7 @@ Enter-Build {
     $PressRequiredModuleManifest = "$PSScriptRoot\Config\RequiredModules.psd1"
     $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $PressRequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue -Confirm:$false
 
-    $SCRIPT:PressSetting = Get-PressSetting -ConfigPath $BuildRoot
+    $SCRIPT:PressSetting = Get-PressSetting -ConfigBase $BuildRoot
 
     #TODO: Move this to PSSetting
     $customModuleManifest = "$BuildRoot/.config/RequiredModules.psd1"

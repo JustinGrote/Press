@@ -1,9 +1,10 @@
-#TODO: Move this to Microsoft.Extensions.Configuration
 function Get-Setting {
     [CmdletBinding()]
     param (
-        #Configuration Path
-        [Parameter(Mandatory)][String]$ConfigPath,
+        #Base Configuration Path to search for configurations
+        [Parameter(Mandatory)][String]$ConfigBase,
+        #Additional YAML configurations to add to the configuration
+        [String[]]$YamlConfigurationPath,
         #Build Output Directory Name. Defaults to Get-BuildEnvironment Default which is 'BuildOutput'
         $BuildOutput = 'BuildOutput'
     )
@@ -130,5 +131,19 @@ function Get-Setting {
     # # Windows Server 2008 R2), 2 for SHA2 to support only newer Windows versions.
     # [System.Diagnostics.CodeAnalysis.SuppressMessage('PSUseDeclaredVarsMoreThanAssigments', '')]
     # $catalogVersion = 2
-    return $Settings
+    $PowerConfig = New-PowerConfig
+    | Add-PowerConfigObject -Object $Settings -WarningAction silentlyContinue #TODO: Find and suppress the json depth warning
+    | Add-PowerConfigYamlSource -Path (Join-Path (Resolve-Path $ConfigBase) '.config/press.yml')
+    
+    foreach ($path in $yamlConfigurationPath) { 
+        $ErrorActionPreference = 'Stop'
+        $PowerConfig = $PowerConfig
+        | Add-PowerConfigYamlSource -Mandatory -Path $path -ErrorAction Stop
+    }
+
+    #Environment variables are added last to take the highest precedence
+    $PowerConfig = $PowerConfig
+    | Add-PowerConfigEnvironmentVariableSource -Prefix 'PRESS_'
+
+    return Get-PowerConfig $PowerConfig
 }
