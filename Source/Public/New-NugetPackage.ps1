@@ -1,5 +1,5 @@
 function New-NugetPackage {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         #Path to the module to build
         [Parameter(Mandatory)][String]$Path,
@@ -50,15 +50,17 @@ function New-NugetPackage {
     try {
         $SCRIPT:tempRepositoryName = "$ModuleName-build-$(Get-Date -format 'yyyyMMdd-hhmmss')"
         Unregister-PSRepository -Name $tempRepositoryName -ErrorAction SilentlyContinue -Verbose:$false *>$null
-        Register-PSRepository -Name $tempRepositoryName -SourceLocation ([String]$Destination) -Verbose:$false *>$null
-        If (Get-Item -ErrorAction SilentlyContinue (Join-Path $Path "$ModuleName*.nupkg")) {
-            Write-Debug Green "Nuget Package for $ModuleName already generated. Skipping. Delete the package to retry"
-        } else {
-            $CurrentProgressPreference = $GLOBAL:ProgressPreference
-            $GLOBAL:ProgressPreference = 'SilentlyContinue'
-            #TODO: Allow requiredmodules references in nuget packages
-            Publish-Module -Repository $tempRepositoryName -Path $Path -Force -Verbose:$false
-            $GLOBAL:ProgressPreference = $CurrentProgressPreference
+        if ($PSCmdlet.ShouldProcess($Path, "Publish Nuget Package to $Destination")) {
+            Register-PSRepository -Name $tempRepositoryName -SourceLocation ([String]$Destination) -Verbose:$false *>$null
+            If (Get-Item -ErrorAction SilentlyContinue (Join-Path $Path "$ModuleName*.nupkg")) {
+                Write-Debug Green "Nuget Package for $ModuleName already generated. Skipping. Delete the package to retry"
+            } else {
+                $CurrentProgressPreference = $GLOBAL:ProgressPreference
+                $GLOBAL:ProgressPreference = 'SilentlyContinue'
+                #TODO: Allow requiredmodules references in nuget packages
+                Publish-Module -Repository $tempRepositoryName -Path $Path -Force -Verbose:$false
+                $GLOBAL:ProgressPreference = $CurrentProgressPreference
+            }
         }
     } catch { Write-Error $PSItem }
     finally {

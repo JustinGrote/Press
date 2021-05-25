@@ -62,7 +62,7 @@ function Restore-NugetPackages {
 </ItemGroup>
 
 </Project>
-"@ > $BuildProjectFile
+"@ | Out-File -FilePath $BuildProjectFile
 
     foreach ($ModuleItem in $Packages.keys) {
 

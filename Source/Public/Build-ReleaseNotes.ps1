@@ -20,7 +20,7 @@ function Build-ReleaseNotes {
     [String]$markdownResult = Get-MessagesSinceLastTag -Path $Path
     | Add-CommitType
     | ConvertTo-ReleaseNotesMarkdown -Version $Version
-    
+
     if ($Destination) {
         Write-Verbose "Release Notes saved to $Destination"
         Out-File -FilePath $Destination -InputObject $markdownResult
@@ -33,9 +33,8 @@ function Get-MessagesSinceLastTag ([String]$Path) {
     try {
         Push-Location -StackName GetMessagesSinceLastTag -Path $Path
         #If this is a release tag, the release notes should be everything since the last release tag
-        [String]$currentCommitTag = try {
-            & git describe --exact-match --tags 2>$null
-        } catch {}
+        [String]$currentCommitTag = & git describe --exact-match --tags 2>$null
+
         [String]$lastVersionTag = & git tag --list 'v*' --sort="version:refname" --merged
         | Where-Object { $PSItem -ne $currentCommitTag }
         | Select-Object -Last 1
@@ -45,7 +44,7 @@ function Get-MessagesSinceLastTag ([String]$Path) {
         } else {
             [String]$lastVersionCommit = (& git rev-list -n 1 $lastVersionTag) + '..'
         }
-        
+
         [String]$gitLogResult = (& git log --pretty=format:"|||%h||%B||%aL||%cL" $lastVersionCommit) -join "`n"
     } catch {
         throw
@@ -67,7 +66,7 @@ function Get-MessagesSinceLastTag ([String]$Path) {
 
 function Add-CommitIdIfNotPullRequest {
     [CmdletBinding()]
-    param ( 
+    param (
         [Parameter(Mandatory,ValueFromPipeline)]$logEntry
     )
     process {
@@ -80,14 +79,14 @@ function Add-CommitIdIfNotPullRequest {
 
 function Add-PullRequestContributorThanks {
     [CmdletBinding()]
-    param ( 
+    param (
         [Parameter(Mandatory,ValueFromPipeline)]$logEntry
     )
     process {
         #TODO: Make ignored committer configurable
         #TODO: Make PR match configurable
-        if ($logEntry.Committer -ne 'noreply' -and #This is the default Github Author 
-            $logEntry.Author -ne $logEntry.Committer -and 
+        if ($logEntry.Committer -ne 'noreply' -and #This is the default Github Author
+            $logEntry.Author -ne $logEntry.Committer -and
             $logEntry.Message -match '#\d+') {
             [string[]]$multiLineMessage = $logEntry.Message.trim().split("`n")
             $multiLineMessage[0] = ($multiLineMessage[0] + ' - Thanks @{0}!') -f $logEntry.Author
@@ -149,8 +148,9 @@ function ConvertTo-ReleaseNotesMarkdown {
         [String]$Version
     )
     begin {
+        $messages = [Collections.ArrayList]::new()
         $markdown = [Text.StringBuilder]::new()
-        
+
         #Top header
         $baseHeader = if ($Version) {
             $currentDate = Get-Date -Format 'yyyy-MM-dd'
@@ -161,10 +161,11 @@ function ConvertTo-ReleaseNotesMarkdown {
 
         [void]$markdown.AppendLine($baseHeader)
     }
-
+    process {
+        [void]$messages.add($InputObject)
+    }
     end {
-        $sortOrder = 'Breaking Changes','New Features','Minor Updates and Bug Fixes','Documentation Updates'
-        $messages = $input 
+        $sortOrder = 'Breaking Changes', 'New Features', 'Minor Updates and Bug Fixes', 'Documentation Updates'
         $messageGroups = $messages
         | Add-PullRequestContributorThanks
         | Add-CommitIdIfNotPullRequest

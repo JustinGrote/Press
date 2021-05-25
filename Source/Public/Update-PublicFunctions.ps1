@@ -4,6 +4,7 @@ This function sets a module manifest for the various function exports that are p
 #>
 
 function Update-PublicFunctions {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         #Path to the module manifest to update
         [Parameter(Mandatory)][String]$Path,
@@ -26,6 +27,8 @@ function Update-PublicFunctions {
     if (Compare-Object $currentFunctions $functions) {
         Write-Verbose "Current Function List in manifest doesn't match. Current: $currentFunctions New: $Functions. Updating."
         #HACK: Don't use Update-ModuleManifest because of https://github.com/PowerShell/PowerShellGetv2/issues/294
-        BuildHelpers\Update-Metadata -Path $Path -PropertyName FunctionsToExport -Value $Functions
+        if ($PSCmdlet.ShouldProcess($Path, "Add Functions $($Functions -join ', ')")) {
+            BuildHelpers\Update-Metadata -Path $Path -PropertyName FunctionsToExport -Value $Functions
+        }
     }
 }

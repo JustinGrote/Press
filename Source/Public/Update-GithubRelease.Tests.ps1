@@ -1,4 +1,5 @@
 . '../../Tests/Shared.ps1'
+
 Describe 'Update-GithubRelease' {
     BeforeAll {
         Write-Verbose 'Loading PowershellForGithub Module'
@@ -31,7 +32,7 @@ Describe 'Update-GithubRelease' {
         if ($Action -eq 'Set-GithubRelease') {
             $SCRIPT:SetReleaseIdResult | Should -Be $SetReleaseId
         }
-        
+
         Should -InvokeVerifiable
         Should -Invoke 'Remove-GithubRelease' -ModuleName Press -Exactly -Times $RemoveCount
 

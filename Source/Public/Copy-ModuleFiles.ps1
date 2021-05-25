@@ -35,7 +35,12 @@ function Copy-ModuleFiles {
         $DestinationDirectory = New-Item -ItemType Directory -Path $Destination -ErrorAction Stop
     } catch [IO.IOException] {
         if ($PSItem.exception.message -match 'already exists\.$') {
-            throw "Folder $Destination already exists. Make sure that you cleaned your Build Output directory. To override this behavior, specify -Force"
+            if (-not $Force) {
+                throw "Folder $Destination already exists. Make sure that you cleaned your Build Output directory. To override this behavior, specify -Force"
+            } else {
+                #Downgrade error to warning
+                Write-Warning $PSItem
+            }
         } else {
             throw $PSItem
         }
@@ -50,7 +55,7 @@ function Copy-ModuleFiles {
     if (-not $SourceManifest.RootModule) { throw "The source manifest at $PSModuleManifest does not have a RootModule specified. This is required to build the module." }
     $SourceRootModulePath = Join-Path $SourceModuleDir $sourceManifest.RootModule
     $SourceRootModule = Get-Content -Raw $SourceRootModulePath
-    
+
     #Cannot use Copy-Item Directly because the filtering isn't advanced enough (can't exclude)
     $SourceFiles = Get-ChildItem -Path $SourceModuleDir -Include $PSFileInclude -Exclude $PSFileExclude -File -Recurse
     if (-not $NoCompile) {
@@ -92,32 +97,36 @@ function Copy-ModuleFiles {
     } else {
         #TODO: Track all files in the source directory to ensure none get missed on the second step
 
-        #In order to get relative paths we have to be in the directory we want to be relative to
-        Push-Location (Split-Path $PSModuleManifest)
+        try {
+            #In order to get relative paths we have to be in the directory we want to be relative to
+            Push-Location (Split-Path $PSModuleManifest)
 
-        $SourceFiles | ForEach-Object {
-            #Powershell 6+ Preferred way.
-            #TODO: Enable when dropping support for building on 5.x
-            #$RelativePath = [io.path]::GetRelativePath($SourceModuleDir,$PSItem.fullname)
+            $SourceFiles | ForEach-Object {
+                #Powershell 6+ Preferred way.
+                #TODO: Enable when dropping support for building on 5.x
+                #$RelativePath = [io.path]::GetRelativePath($SourceModuleDir,$PSItem.fullname)
 
-            #Powershell 3.x compatible "Ugly" Regex method
-            #$RelativePath = $PSItem.FullName -replace [Regex]::Escape($SourceModuleDir),''
+                #Powershell 3.x compatible "Ugly" Regex method
+                #$RelativePath = $PSItem.FullName -replace [Regex]::Escape($SourceModuleDir),''
 
-            $RelativePath = Resolve-Path $PSItem.FullName -Relative
+                $RelativePath = Resolve-Path $PSItem.FullName -Relative
 
-            #Copy-Item doesn't automatically create directory structures when copying files vs. directories
-            $DestinationPath = Join-Path $DestinationDirectory $RelativePath
-            $DestinationDir = Split-Path $DestinationPath
-            if (-not (Test-Path $DestinationDir)) { New-Item -ItemType Directory $DestinationDir > $null }
-            $copiedItems = Copy-Item -Path $PSItem -Destination $DestinationPath -PassThru
-            #Update file timestamps for Invoke-Build Incremental Build detection
-            $copiedItems.foreach{
-                $PSItem.LastWriteTime = [DateTime]::Now
+                #Copy-Item doesn't automatically create directory structures when copying files vs. directories
+                $DestinationPath = Join-Path $DestinationDirectory $RelativePath
+                $DestinationDir = Split-Path $DestinationPath
+                if (-not (Test-Path $DestinationDir)) { New-Item -ItemType Directory $DestinationDir > $null }
+                $copiedItems = Copy-Item -Path $PSItem -Destination $DestinationPath -PassThru
+                #Update file timestamps for Invoke-Build Incremental Build detection
+                $copiedItems.foreach{
+                    $PSItem.LastWriteTime = [DateTime]::Now
+                }
             }
+        } catch {
+            throw
+        } finally {
+            #Return after processing relative paths
+            Pop-Location
         }
-
-        #Return after processing relative paths
-        Pop-Location
     }
 
     #Output the (potentially) modified Root Module
@@ -149,7 +158,8 @@ function Copy-ModuleFiles {
 
     #Add a prerelease
     if (-not $NoPreReleaseFile) {
-        'This is a prerelease build and not meant for deployment!' > (Join-Path $DestinationDirectory "PRERELEASE-$($PressSetting.VersionLabel)")
+        'This is a prerelease build and not meant for deployment!' |
+            Out-File -FilePath (Join-Path $DestinationDirectory "PRERELEASE-$($PressSetting.VersionLabel)")
     }
 
     return [PSCustomObject]@{
