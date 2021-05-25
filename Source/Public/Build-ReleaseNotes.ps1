@@ -38,7 +38,10 @@ function Get-MessagesSinceLastTag ([String]$Path) {
             [String]$currentCommitTag = & git describe --exact-match --tags 2>$null
         } catch {
             if ($PSItem -match 'no tag exactly matches') {
-                #No matching tag is OK
+                #If this is not a direct tag that's fine
+                $currentCommitTag = $null
+            } elseif ($PSItem -match 'no names found, cannot describe anything.') {
+                #This just means there are no tags
                 $currentCommitTag = $null
             } else {
                 throw
