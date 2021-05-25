@@ -7,8 +7,12 @@ function Invoke-Clean {
     )
 
     #Taken from Invoke-Build because it does not preserve the command in the scope this function normally runs
-    #Copyright (c) Roman Kuzmin
-    function Remove-BuildItem([Parameter(Mandatory = 1)][string[]]$Path) {
+    #Copyright (c) Roman
+    function Remove-BuildItem() {
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', Scope = 'Function', Target = '*')]
+        param(
+            [Parameter(Mandatory)][string[]]$Path
+        )
         if ($Path -match '^[.*/\\]*$') { *Die 'Not allowed paths.' 5 }
         $v = $PSBoundParameters['Verbose']
         try {

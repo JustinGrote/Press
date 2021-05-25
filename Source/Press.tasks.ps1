@@ -58,7 +58,7 @@ Task Press.Version @{
         if ($GitVersionConfig) {
             Get-Item $GitVersionConfig -ErrorAction SilentlyContinue
         }
-        
+
         #Include default gitversion config as well
         Resolve-Path $PSScriptRoot\GitVersion.default.yml
     }
@@ -97,7 +97,7 @@ Task Press.Test.Pester {
         Import-Module Pester -MinimumVersion '5.0.0' | Write-Verbose
         #We can't do this in the param block because pester and its classes may not be loaded yet.
         [PesterConfiguration]$Configuration = $Configuration
-    
+
         #FIXME: Allow for custom configurations once we figure out how to serialize them into a job
         if ($Configuration) { throw [NotSupportedException]'Custom Pester Configurations temporarily disabled while sorting out best way to run them in isolated job' }
         if (-not $Configuration) {
@@ -117,11 +117,11 @@ Task Press.Test.Pester {
             #Exclude the output folder in case we dcopied any tests there to avoid duplicate testing. This should generally only matter for "meta" like PowerForge
             #FIXME: Specify just the directory instead of a path search when https://github.com/pester/Pester/issues/1575 is fixed
             $Configuration.Run.ExcludePath = [String[]](Get-ChildItem -Recurse $OutputPath -Include '*.Tests.ps1')
-    
+
         }
-    
+
         $TestResults = Invoke-Pester -Configuration $Configuration
-        
+
         if ($TestResults.Result -ne 'Passed') {
             throw "Failed $($TestResults.FailedCount) tests"
         }
@@ -146,7 +146,7 @@ Task Press.ReleaseNotes Press.SetModuleVersion, {
     $Version = Get-Content (Join-Path $PressSetting.Build.OutDir '.gitversion')
     | ConvertFrom-Json
     | ForEach-Object NuGetVersionV2
-    
+
     Build-PressReleaseNotes @commonParams -Path $PressSetting.General.ProjectRoot -Destination (Join-Path $PressSetting.Build.OutDir 'RELEASENOTES.MD') -Version $Version
 }
 
@@ -170,12 +170,12 @@ Task Press.SetReleaseNotes Press.ReleaseNotes, {
 
 #FIXME: Implement non-press version
 Task Press.CopyModuleFiles @{
-    Inputs  = { 
+    Inputs  = {
         Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir
     }
-    Outputs = { 
+    Outputs = {
         $buildItems = Get-ChildItem -File -Recurse $PressSetting.Build.ModuleOutDir
-        if ($buildItems) { $buildItems } else { 'EmptyBuildOutputFolder' } 
+        if ($buildItems) { $buildItems } else { 'EmptyBuildOutputFolder' }
     }
     #(Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
     Jobs    = {
@@ -232,7 +232,7 @@ Task Press.Package.Nuget @{
         # [String]$ZipFileName = $PressSetting.BuildEnvironment.ProjectName + '.' + $SCRIPT:GitVersionInfo.NugetVersionV2 + '.zip'
         # [String](Join-Path $PressSetting.BuildEnvironment.BuildOutput $ZipFileName)
         $nugetPackageName = $PressSetting.General.ModuleName + '.' + (Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json).NugetVersionV2 + '.nupkg'
-        
+
         "$($PressSetting.Build.OutDir)\$nugetPackageName"
     }
     Jobs    = {

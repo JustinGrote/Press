@@ -46,7 +46,7 @@ Describe 'Get-Version' {
         $result.NuGetPreReleaseTagV2 | Should -Be 'beta0002'
         $result.SemVer | Should -Be '0.1.0-beta.2'
     }
-    
+
     It 'Shows Diag Successfully' {
         if ($ENV:GITHUB_ACTIONS) {
             Set-ItResult -Inconclusive -Because 'FIXME: Doesnt work in github actions due to actions detection'

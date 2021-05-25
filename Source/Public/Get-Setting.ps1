@@ -134,8 +134,8 @@ function Get-Setting {
     $PowerConfig = New-PowerConfig
     | Add-PowerConfigObject -Object $Settings -WarningAction silentlyContinue #TODO: Find and suppress the json depth warning
     | Add-PowerConfigYamlSource -Path (Join-Path (Resolve-Path $ConfigBase) '.config/press.yml')
-    
-    foreach ($path in $yamlConfigurationPath) { 
+
+    foreach ($path in $yamlConfigurationPath) {
         $ErrorActionPreference = 'Stop'
         $PowerConfig = $PowerConfig
         | Add-PowerConfigYamlSource -Mandatory -Path $path -ErrorAction Stop

@@ -8,7 +8,7 @@ foreach ($ScriptPathItem in 'Private','Public') {
         Foreach-Object {
             if ($ScriptPathItem -eq 'Public') {$PublicFunctions += $PSItem.BaseName}
             . $PSItem
-        } 
+        }
 }
 Export-ModuleMember -Function $publicFunctions
 #endregion SourceInit

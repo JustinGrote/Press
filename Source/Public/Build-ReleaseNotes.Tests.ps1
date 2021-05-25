@@ -28,7 +28,7 @@ Describe 'Add-PullRequestContributorThanks' {
                 Author  = 'Pester'
                 Committer = 'SomeCommitter'
                 Message = '✨ PR Commit (#99)'
-            } | Add-PullRequestContributorThanks 
+            } | Add-PullRequestContributorThanks
         }
         $result.message | Should -Be '✨ PR Commit (#99) - Thanks @Pester!'
     }
@@ -38,7 +38,7 @@ Describe 'Add-PullRequestContributorThanks' {
                 Author    = 'Pester'
                 Committer = 'SomeCommitter'
                 Message   = 'PR Commit (#99)','Adds some stuff','Removes some stuff' -join "`n"
-            } | Add-PullRequestContributorThanks 
+            } | Add-PullRequestContributorThanks
         }
         $result.message | Should -BeLike 'PR Commit (#99) - Thanks @Pester!*'
     }
@@ -48,7 +48,7 @@ Describe 'Add-PullRequestContributorThanks' {
                 Author    = 'Pester'
                 Committer = 'Pester'
                 Message   = 'PR Commit (#99)'
-            } | Add-PullRequestContributorThanks 
+            } | Add-PullRequestContributorThanks
         }
         $result.message | Should -Be 'PR Commit (#99)'
     }
@@ -57,18 +57,18 @@ Describe 'Add-PullRequestContributorThanks' {
             @{
                 Author  = 'Pester'
                 Message = 'Non-PR Commit'
-            } | Add-PullRequestContributorThanks 
+            } | Add-PullRequestContributorThanks
         }
         $result.Message | Should -Be 'Non-PR Commit'
     }
-    
+
     It 'Does not add thanks to PR by Github' {
         $result = & (Get-Module Press) {
             @{
                 Author    = 'PesterAuthor'
                 Committer = 'noreply'
                 Message   = 'PR Commit (#99)'
-            } | Add-PullRequestContributorThanks 
+            } | Add-PullRequestContributorThanks
         }
         $result.message | Should -BeLike 'PR Commit (#99)'
     }

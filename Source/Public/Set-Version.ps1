@@ -3,7 +3,7 @@
 Sets the version on a powershell Module
 #>
 function Set-Version {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         #Path to the module manifest to update
         [String][Parameter(Mandatory)]$Path,
@@ -18,7 +18,9 @@ function Set-Version {
     # $currentVersion = Get-Metadata -Path $Path -PropertyName 'ModuleVersion'
     if ($currentVersion -ne $Version) {
         Write-Verbose "Current Manifest Version $currentVersion doesn't match $Version. Updating..."
-        BuildHelpers\Update-Metadata -Path $Path -PropertyName ModuleVersion -Value $Version
+        if ($PSCmdlet.ShouldProcess($Path, "Set ModuleVersion to $Version")) {
+            Update-Metadata -Path $Path -PropertyName ModuleVersion -Value $Version
+        }
     }
 
     $currentPreRelease = $Manifest.privatedata.psdata.prerelease
@@ -28,15 +30,18 @@ function Set-Version {
             #HACK: Do not use update-modulemanifest because https://github.com/PowerShell/PowerShellGetv2/issues/294
             #TODO: AutoCreate prerelease metadata
             try {
-                Update-Metadata -Path $Path -PropertyName PreRelease -Value $PreRelease
+                if ($PSCmdlet.ShouldProcess($Path, "Set Prerelease Version to $PreRelease")) {
+                    Update-Metadata -Path $Path -PropertyName PreRelease -Value $PreRelease
+                }
             } catch {
                 if ($PSItem -like "Can't find*") {
                     throw 'Could not find the Prerelease field in your source manifest file. You must add this under PrivateData/PSData first'
                 }
             }
-            
         }
     } elseif ($CurrentPreRelease -ne '') {
-        Update-Metadata -Path $Path -PropertyName PreRelease -Value ''
+        if ($PSCmdlet.ShouldProcess($Path, "Remove $PreRelease if it is present")) {
+            Update-Metadata -Path $Path -PropertyName PreRelease -Value ''
+        }
     }
 }

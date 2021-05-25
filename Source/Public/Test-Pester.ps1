@@ -37,7 +37,7 @@ function Test-Pester {
     }
 
     $TestResults = Invoke-Pester -Configuration $Configuration
-    
+
     if ($TestResults.Result -ne 'Passed') {
         throw "Failed $($TestResults.FailedCount) tests"
     }

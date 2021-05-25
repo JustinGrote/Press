@@ -1,7 +1,7 @@
 #requires -version 7
 #because it uses System.Management.Automation.SemanticVersion
 function Update-GithubRelease {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)][String]$Owner,
         [Parameter(Mandatory)][String]$Repository,
@@ -10,7 +10,7 @@ function Update-GithubRelease {
         [Parameter(Mandatory)][String]$Body,
         [String[]]$ArtifactPath,
         #Skip cleanup of old drafts within the same major version
-        $NoCleanup
+        [Switch]$NoCleanup
     )
 
     $Tag = "v$Version"
@@ -34,13 +34,17 @@ function Update-GithubRelease {
     )
 
     #Cleanup older drafts within the same major release if they exist
-    $removedReleases = $existingReleases
-    | Where-Object Draft
-    | Where-Object tag_name -NE $Tag
-    | ForEach-Object {
-        Write-Verbose "Detected Older Draft Release for $($PSItem.tag_name) older minor version than $Version, removing"
-        $PSItem | Remove-GitHubRelease @gitHubParams -ErrorAction Stop -Force
-        Write-Output $PSItem
+    if (-not $NoCleanup) {
+        if ($PSCmdlet.ShouldProcess('Existing Github Releases', 'Remove all existing draft releases with same major version')) {
+            $removedReleases = $existingReleases
+            | Where-Object Draft
+            | Where-Object tag_name -NE $Tag
+            | ForEach-Object {
+                Write-Verbose "Detected Older Draft Release for $($PSItem.tag_name) older minor version than $Version, removing"
+                $PSItem | Remove-GitHubRelease @gitHubParams -ErrorAction Stop -Force
+                Write-Output $PSItem
+            }
+        }
     }
 
     $removedReleases.foreach{
@@ -73,7 +77,7 @@ function Update-GithubRelease {
         if ($taggedRelease.count -gt 1) {
             throw "Unable to resolve to a single release for tag $Tag. This is probably a bug. Items: $taggedRelease"
         }
-    } 
+    }
 
     $ghReleaseParams = $gitHubParams.Clone()
     $ghReleaseParams.Body = $Body
@@ -100,6 +104,6 @@ function Update-GithubRelease {
 
         $artifactPath
         | New-GitHubReleaseAsset @gitHubParams -Release $releaseResult.releaseID
-        | Out-Null 
+        | Out-Null
     }
 }
