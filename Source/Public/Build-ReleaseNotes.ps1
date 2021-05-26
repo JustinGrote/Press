@@ -15,9 +15,7 @@ function Build-ReleaseNotes {
         [Switch]$Full
     )
 
-    if ($full) { throw [NotImplementedException]'#TODO: Full Release Notes Generation' }
-
-    [String]$markdownResult = Get-MessagesSinceLastTag -Path $Path
+    [String]$markdownResult = Get-MessagesSinceLastTag -Path $Path -All:$Full
     | Add-CommitType
     | ConvertTo-ReleaseNotesMarkdown -Version $Version
 
@@ -29,7 +27,7 @@ function Build-ReleaseNotes {
     }
 }
 
-function Get-MessagesSinceLastTag ([String]$Path) {
+function Get-MessagesSinceLastTag ([String]$Path, [Switch]$All) {
     try {
         Push-Location -StackName GetMessagesSinceLastTag -Path $Path
         # Unicode (emoji) output from native commands cause issues on Windows
@@ -64,6 +62,10 @@ function Get-MessagesSinceLastTag ([String]$Path) {
             $lastVersionCommit = $null
         } else {
             [String]$lastVersionCommit = (& git rev-list -n 1 $lastVersionTag) + '..'
+        }
+
+        if ($All) {
+            $lastVersionCommit = $null
         }
 
         [String]$gitLogResult = (& git log --pretty=format:"|||%h||%B||%aL||%cL" $lastVersionCommit) -join "`n"
