@@ -10,13 +10,14 @@ Describe 'Build-ReleaseNotes' {
         & git config user.email 'pester@pester.pester'
         & git config user.name 'Pester'
         & git commit --allow-empty -am 'PesterCommit1' | Out-Null
-        [String]$multilineFeature = '✨ New Feature','Line1 of new feature','Line2 of new feature' -join "`n"
+        [String]$multilineFeature = "`u{2728} New Feature", 'Line1 of new feature', 'Line2 of new feature' -join "`n"
         & git commit --allow-empty -am $multilineFeature | Out-Null
             & git commit --allow-empty -am 'PesterCommit3' | Out-Null
             Pop-Location
     }
     It 'Processes New Features' {
-        [String]$markdownResult = Build-ReleaseNotes -Path $PesterProject
+        [console]::OutputEncoding = [Text.Encoding]::UTF8
+        $markdownResult = Build-ReleaseNotes -Path $PesterProject
         $markdownResult | Should -Match '### New Features'
     }
 }
