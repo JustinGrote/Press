@@ -8,8 +8,8 @@ function Invoke-Clean {
 
     #Taken from Invoke-Build because it does not preserve the command in the scope this function normally runs
     #Copyright (c) Roman
-    function Remove-BuildItem() {
-        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', Scope = 'Function', Target = '*')]
+    function Remove-BuildItem {
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Private Function')]
         param(
             [Parameter(Mandatory)][string[]]$Path
         )
@@ -30,7 +30,7 @@ function Invoke-Clean {
     #Reset the BuildOutput Directory
     if (Test-Path $buildOutputPath) {
         Write-Verbose "Removing and resetting Build Output Path: $buildOutputPath"
-        Remove-BuildItem $buildOutputPath -Verbose:$false
+        Remove-BuildItem -Path $buildOutputPath
     }
 
     if ($Prerequisites) {

@@ -77,7 +77,7 @@ Task Press.Version @{
 }
 
 Task Press.Clean {
-    Invoke-PressClean -buildOutputPath $PressSetting.Build.OutDir -buildProjectName $PressSetting.General.ModuleName @commonParams
+    Invoke-PressClean -BuildOutputPath $PressSetting.Build.OutDir -BuildProjectName $PressSetting.General.ModuleName @commonParams
 }
 
 Task Press.Test.Pester {
