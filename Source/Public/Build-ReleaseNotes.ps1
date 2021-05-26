@@ -32,6 +32,10 @@ function Build-ReleaseNotes {
 function Get-MessagesSinceLastTag ([String]$Path) {
     try {
         Push-Location -StackName GetMessagesSinceLastTag -Path $Path
+        # Unicode (emoji) output from native commands cause issues on Windows
+        $lastOutputEncoding = [console]::OutputEncoding
+        [console]::OutputEncoding = [Text.Encoding]::UTF8
+
         try {
             $LastErrorActionPreference = $ErrorActionPreference
             $ErrorActionPreference = 'Stop'
@@ -66,6 +70,7 @@ function Get-MessagesSinceLastTag ([String]$Path) {
     } catch {
         throw
     } finally {
+        [console]::OutputEncoding = $lastOutputEncoding
         Pop-Location -StackName GetMessagesSinceLastTag
     }
 

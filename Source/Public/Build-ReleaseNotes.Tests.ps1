@@ -16,7 +16,6 @@ Describe 'Build-ReleaseNotes' {
             Pop-Location
     }
     It 'Processes New Features' {
-        [console]::OutputEncoding = [Text.Encoding]::UTF8
         $markdownResult = Build-ReleaseNotes -Path $PesterProject
         $markdownResult | Should -Match '### New Features'
     }
