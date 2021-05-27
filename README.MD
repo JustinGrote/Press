@@ -1,14 +1,9 @@
-# Press
+![Press Logo](./Images/Press.png)
 
-Press is a rewrite of PowerCD with some modern decisions:
-1. PS7+ Only for Building (built modules can still have lower compatability)
-1. Drop Azure Pipelines/Appveyor support and go all-in on Github Actions. Local packages.
-1. Support a Github development workflow via Github Pull Requests/Features and vscode
-1. Embrace devmoji but still support conventional commits
-1. Expand to github releases, changelog support, artifacts, etc.
+Press is a continuous integration build system for [PowerShell modules](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_modules). It enables you to build, test, and deploy high quality modules using a highly configurable build engine that works out of the box but is completely customizable to your needs.
 
 ## Configuring Press
-Press using the [PowerConfig configuration engine](https://github.com/justingrote/PowerConfig) to manage settings. 
+Press using the [PowerConfig configuration engine](https://github.com/justingrote/PowerConfig) to manage settings.
 
 `Get-PressSetting` will show you the default configuration values of the project. You can override these settings currently in two ways:
 
@@ -53,3 +48,11 @@ Here is what a typical workflow would look like:
 4. Merge the feature request to your main branch and ensure the PR message has the feature emoji ✨ or feat:. Your main branch is now automatically at v0.0.2-beta0001 and a release has automatically been drafted for you in GitHub, and if enabled, will be made available on the Powershell Gallery
 5. Follow steps 2-4 again. Your main branch is now automatically at v0.0.2-beta0002 and the draft release has been updated with the latest release notes. If enabled, your beta version will automatically be made available on the Powershell Gallery
 6. Go the the release draft and click "Publish". Your project is now at v0.0.2 and your latest commit will be tagged as such, and a production version matching your release will be made available on the Powershell Gallery.
+
+## Origin
+Press is a rewrite of PowerCD with some modern decisions:
+1. PS7+ Only for Building (built modules can still have lower compatability)
+1. Drop Azure Pipelines/Appveyor support and go all-in on Github Actions. Local packages.
+1. Support a Github development workflow via Github Pull Requests/Features and vscode
+1. Embrace devmoji but still support conventional commits
+1. Expand to github releases, changelog support, artifacts, etc.
