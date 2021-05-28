@@ -9,8 +9,8 @@ on:
       - production
     tags:
       - '*'
-  release: 
-    types: 
+  release:
+    types:
       - published
   pull_request:
     branches:
@@ -70,7 +70,7 @@ jobs:
         run: |
           $GLOBAL:ProgressPreference = 'SilentlyContinue'
           if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$GLOBAL:VerbosePreference = 'continue'}
-          ./build '.,Package'
+          ./build .,Package
 
       - name: 📦 Capture Powershell Module
         uses: actions/upload-artifact@v2
@@ -94,13 +94,13 @@ jobs:
       - if: always() && runner.os != 'Windows' && steps.debugStatus.outputs.runnerDebug
         name: 🐛 Debug via SSH if ACTIONS_RUNNER_DEBUG secret is set
         uses: lhotari/action-upterm@v1
-      
+
       #TODO: Move to dedicated function
       - name: 📦 Update Draft Github Release
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/ci'
         shell: pwsh
         run: |
-          ./build 'Press.UpdateGitHubRelease'
+          ./build Press.UpdateGitHubRelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -159,7 +159,7 @@ jobs:
             $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
           }
 
-          . ./build.ps1 'Test'
+          . ./build.ps1 Test
 
       #Meta: We don't test on 5.1 for using the module for Press
       - if: runner.os == 'Windows' && github.repository	!= 'JustinGrote/Press'
@@ -171,7 +171,7 @@ jobs:
           if ('${{ github.event.repository.name }}' -eq 'Press') {
             $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
           }
-          . ./build.ps1 'Test'
+          . ./build.ps1 Test
 
   deployPrerelease:
     name: 🚀 Deploy Prelease Module
