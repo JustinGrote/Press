@@ -73,7 +73,8 @@ function Test-Pester {
                 $winPSUserModPath = "$HOME/Documents/WindowsPowershell/Modules"
                 if (
                     $PSEdition -eq 'Desktop' -and
-                    $ENV:PSModulePath.split([IO.Path]::PathSeparator) -notcontains $(Resolve-Path $winPSUserModPath)
+                    $ENV:PSModulePath.split([IO.Path]::PathSeparator) -notcontains $(Resolve-Path $winPSUserModPath) -and
+                    (Test-Path $winPSUserModPath)
                 ) {
                     $ENV:PSModulePath = $(Resolve-Path $winPSUserModPath), $ENV:PSModulePath -join [IO.Path]::PathSeparator
                 }
