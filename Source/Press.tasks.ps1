@@ -89,6 +89,7 @@ Task Press.Test.Pester @{
             Path       = $PressSetting.General.ProjectRoot
             OutputPath = $PressSetting.Build.OutDir
         }
+
         $pesterResult = Test-PressPester @TestPressPesterParams
 
         Assert $pesterResult 'No Pester Result produced'
@@ -100,7 +101,7 @@ Task Press.Test.Pester.WindowsPowershell @{
         $pscommand = (Get-Command powershell.exe -ErrorAction SilentlyContinue)
         [Version]$requiredVersion = [Version](Import-PowerShellDataFile $PressSetting.General.ModuleManifestPath).PowershellVersion
 
-        $pscommand -and -not ($requiredVersion -gt '6.0.0')
+        $pscommand -and -not ($requiredVersion -ge '6.0.0')
     }
     Inputs  = { [String[]](Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir) }
     Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
