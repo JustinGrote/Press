@@ -80,20 +80,16 @@ Task Press.Clean {
     Invoke-PressClean -BuildOutputPath $PressSetting.Build.OutDir -BuildProjectName $PressSetting.General.ModuleName @commonParams
 }
 
-Task Press.Test.Pester {
-    $pesterResult = Test-PressPester -InJob -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
-    Assert $pesterResult 'No Pester Result produced'
+Task Press.Test.Pester @{
+    Inputs  = { [String[]](Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir) }
+    Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
+    Jobs    = {
+        $pesterResult = Test-PressPester -InJob -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
+        Assert $pesterResult 'No Pester Result produced'
+    }
 
     #TODO: Test-PressPester UseWindowsPowershell PressSetting
 
-    # Inputs  = { [String[]](Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir) }
-    # #TODO: Validate the output and throw error unless a force setting is set
-    # #BUG: Tests will proceed currently if nothing was changed
-    # Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
-    # Jobs    = {
-    #     $pesterResult = Test-PressPester -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
-    #     Assert $pesterResult 'No Pester Result produced'
-    # }
 }
 
 #TODO: Inputs/Outputs
