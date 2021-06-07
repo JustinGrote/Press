@@ -84,13 +84,41 @@ Task Press.Test.Pester @{
     Inputs  = { [String[]](Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir) }
     Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
     Jobs    = {
-        $pesterResult = Test-PressPester -InJob -Path $PressSetting.General.ProjectRoot -OutputPath $PressSetting.Build.OutDir
+        $TestPressPesterParams = @{
+            InJob      = $true
+            Path       = $PressSetting.General.ProjectRoot
+            OutputPath = $PressSetting.Build.OutDir
+        }
+        $pesterResult = Test-PressPester @TestPressPesterParams
+
         Assert $pesterResult 'No Pester Result produced'
     }
-
-    #TODO: Test-PressPester UseWindowsPowershell PressSetting
-
 }
+
+Task Press.Test.Pester.WindowsPowershell @{
+    If      = {
+        $pscommand = (Get-Command powershell.exe -ErrorAction SilentlyContinue)
+        [Version]$requiredVersion = [Version](Import-PowerShellDataFile $PressSetting.General.ModuleManifestPath).PowershellVersion
+
+        $pscommand -and -not ($requiredVersion -gt '6.0.0')
+    }
+    Inputs  = { [String[]](Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir) }
+    Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
+    Jobs    = {
+        $TestPressPesterParams = @{
+            InJob                = $true
+            Path                 = $PressSetting.General.ProjectRoot
+            OutputPath           = $PressSetting.Build.OutDir
+            UseWindowsPowershell = $true
+        }
+        $pesterResult = Test-PressPester @TestPressPesterParams
+
+        Test-PressPester @TestPressPesterParams
+
+        Assert $pesterResult 'No Pester Result produced'
+    }
+}
+
 
 #TODO: Inputs/Outputs
 Task Press.ReleaseNotes Press.SetModuleVersion, {
@@ -229,7 +257,7 @@ task Press.Package @(
 )
 task Press.Test @(
     'Press.Test.Pester'
-
+    'Press.Test.Pester.WindowsPowershell'
 )
 Task Press.Default @(
     'Press.Build'
