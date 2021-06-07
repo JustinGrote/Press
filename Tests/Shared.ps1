@@ -4,6 +4,7 @@ BeforeAll {
     $SCRIPT:Mocks = Resolve-Path $PSScriptRoot/Mocks
     Write-Verbose 'Loading Module to Test'
     #TODO: Remove Press Hardcoding
+    Get-Module Press | Remove-Module -Verbose
     Import-Module $PSScriptRoot/../Source/Press.psm1 -Force -Global 4>$null
     function JsonMock ($Path) {
         Get-Content -Raw (Join-Path $SCRIPT:Mocks $Path) | ConvertFrom-Json

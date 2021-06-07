@@ -1,4 +1,5 @@
-. '../../Tests/Shared.ps1'
+. $(Resolve-Path "$PSScriptRoot/../../Tests/Shared.ps1")
+
 Describe 'Get-Version' {
     BeforeAll {
         #TODO: Move this to testcases

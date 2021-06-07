@@ -1,4 +1,4 @@
-. '../../Tests/Shared.ps1'
+. $(Resolve-Path "$PSScriptRoot/../../Tests/Shared.ps1")
 
 Describe 'Update-GithubRelease' {
     BeforeAll {
