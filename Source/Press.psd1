@@ -54,7 +54,7 @@
     RequiredModules      = @(
         @{
             ModuleName    = 'PowerConfig'
-            ModuleVersion = '0.1.3'
+            RequiredVersion = '0.1.6'
         }
     )
 
