@@ -9,7 +9,12 @@ Describe 'Test-Pester' {
             $testResults = Test-Pester -Quiet -Path (Resolve-Path $Mocks/SimpleModule) -OutputPath $tempPath
             $testResults.Result | Should -Be 'Passed'
             $testResults.PSVersion | Should -BeGreaterThan '6.0'
-        } catch { throw } finally {
+        } catch {
+            $PSItem |
+                Format-List |
+                Write-Host -Fore Yellow
+            throw
+        } finally {
             Remove-Item $tempPath -Recurse -Force
         }
     }
