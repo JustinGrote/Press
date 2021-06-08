@@ -92,7 +92,6 @@ function Test-Pester {
 
                 Set-Location $USING:PWD
                 $configuration = [PesterConfiguration]$($USING:configurationJson | ConvertFrom-Json)
-                'ExcludePaths:' + $configuration.Run.ExcludePath.Value | Write-Host -Fore Yellow
                 Invoke-Pester -Configuration $configuration
             }
         }
