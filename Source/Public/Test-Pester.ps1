@@ -6,6 +6,8 @@ function Test-Pester {
         [Parameter(Mandatory, ParameterSetName = 'Default')][String]$Path,
         #Path where the coverage files should be output. Defaults to the build output path.
         [Parameter(Mandatory, ParameterSetName = 'Default')][String]$OutputPath,
+        #Test files that should be excluded from the run, for example, Pester Mock Tests
+        [Parameter(ParameterSetName = 'Default')][String[]]$ExcludePath,
         #A PesterConfiguration hashtable to use instead of the intelligent defaults. For advanced usage only.
         [Parameter(ParameterSetName = 'Configuration')][hashtable]$Configuration,
         #Run the result as a separate job, useful if testing modules with assemblies since they cannot be removed from
@@ -31,9 +33,6 @@ function Test-Pester {
             Run        = @{
                 PassThru = $true
                 Path     = $Path
-                #Exclude the output folder in case we dcopied any tests there to avoid duplicate testing. This should generally only matter for "meta" like Press
-                #FIXME: Specify just the directory instead of a path search when https://github.com/pester/Pester/issues/1575 is fixed
-                # ExcludePath = [String[]](Get-ChildItem -Recurse $OutputPath -Include '*.Tests.ps1')
             }
             TestResult = @{
                 Enabled    = $true
@@ -51,6 +50,9 @@ function Test-Pester {
 
     if ($Quiet) {
         $Configuration.Output.Verbosity = 'None'
+    }
+    if ($ExcludePath) {
+        $Configuration.Run.ExcludePath = $ExcludePath
     }
 
     #Validate the configuration before we pass it to the job
@@ -87,8 +89,10 @@ function Test-Pester {
                     #TODO: Search for it in pwsh folders or via virtual environment
                     throw 'You must have Pester 5.2 or greater installed in your Windows Powershell 5.1 session. Hint: Install-Module Pester -MinimumVersion 5.2.0 -Scope CurrentUser'
                 }
+
                 Set-Location $USING:PWD
                 $configuration = [PesterConfiguration]$($USING:configurationJson | ConvertFrom-Json)
+                'ExcludePaths:' + $configuration.Run.ExcludePath.Value | Write-Host -Fore Yellow
                 Invoke-Pester -Configuration $configuration
             }
         }
