@@ -1,0 +1,39 @@
+## [0.3.0-justingroteiss0031] - 2021-06-08
+### New Features
+- ✨ Pester Test Tasks Now Isolated to Jobs (#18)
+    Enables Pester Tests to be run in an isolated job, useful for avoiding local context dependencies like profiles, and allows for repeated testing of custom c# assemblies and powershell classes without having to restart the main powershell process.
+- ✨ Add -Full option for Build-ReleaseNotes
+    This parameter generates the entire changelog for the whole project, not just since the last release tag (0ad7852)
+- ✨ Restore-NugetPackages
+    Allows you to specify a set of nuget packages via hashtable and have the DLLs copied to the module (24c0da9)
+- ✨ PowerConfig Configuration Engine (#14)
+    Press can now be configured by using environment variables and a .config/Press.yml file. See the "Configuring Press" section in the readme for more detail.
+- ✨ Add commits and author credit to Release Notes (#15)
+    Release notes now will include direct commit links to directly committed changes
+    "Thanks" credits will be added for the primary author of a pull request if it is not the same person who committed the PR.
+
+### Minor Updates and Bug Fixes
+- ⬆️ PowerConfig 0.1.6 (#19)
+- 🩹 Clean up some unnecessary output for Windows Powershell Task (57d08ca)
+- 🩹 Use different output file for WinPS Test Results (4b90b47)
+- 📦 Stub out Invoke-Build bootstrap (db993c1)
+- 📝 Add Press Logo and intro blurb (8f61aae)
+- 🩹 Remove-BuildItem suppressRule incorrect constructor (591b51b)
+- ♻️ Move Output Encoding into Build-ReleaseNotes (71544df)
+- 🧪 Fix Build-ReleaseNotes Test Output Encoding
+    The test would fail if run in a "normal" Powershell console due to the encoding from the native git command not being processed correctly (f2455cd)
+- ♻️ Script Analyzer Rules Update and Code Fixes (#16)
+    Enabled additional script analyzer rules and performed appropriate fixes (mostly trailing whitespace)
+- ➖ Drop support for deprecated ubuntu-16.04 (82dd229)
+- 🔥 Dockerfile (moved to separate repo) (1e44253)
+- 🩹 Suppress Progress Output in Actions (964ec67)
+- 🧪 Add Act testing config (940aa2a)
+- 🐛 Build fails if Using Namespace statement exists (796f097)
+- 🐛 Requirements file path changed but not updated in Github Actions (956415c)
+- 👷 Generalize the deployment process (7c03b09)
+- 🐛 Version would fail with empty input if no giversion specified (63c63cd)
+- 🐛 .config does not get published (b6014ab)
+- 📦 Make PowerCD Specific File Copies their own tasks (1c3832a)
+- 🐛 Press RequiredModules not present in manifest (3e744f2)
+- 🐛 RequiredModules.psd1 in consuming repository not detected (#10)
+- 📝 Added some general information about how the Press workflow operates (736564f)

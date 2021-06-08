@@ -131,7 +131,6 @@ Task Press.Test.Pester.WindowsPowershell @{
     }
 }
 
-
 #TODO: Inputs/Outputs
 Task Press.ReleaseNotes Press.SetModuleVersion, {
     #TODO: Replace OutDir with ReleaseNotes or Changelog Specific PSSetting
@@ -145,19 +144,10 @@ Task Press.ReleaseNotes Press.SetModuleVersion, {
 #TODO: Inputs/Outputs
 Task Press.SetReleaseNotes Press.ReleaseNotes, {
     $ModuleOutManifest = (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1")
-    #TODO: Replace with specific PSSetting for modulemanifest
-    [String]$ReleaseNotes = (Import-PowerShellDataFile $ModuleOutManifest).PrivateData.PSData.ReleaseNotes
     #TODO: Replace OutDir with ReleaseNotes or Changelog Specific PSSetting
     [String]$newReleaseNotes = Get-Content -Raw (Join-Path $PressSetting.Build.OutDir 'RELEASENOTES.MD')
 
-    #Quirk: Update-ModuleManifest strips line feeds so we need to do the same when comparing
-    #TODO: Better way to compare maybe?
-    $ReleaseNotesCompare = [text.encoding]::UTF8.GetBytes($ReleaseNotes) | Where-Object { $_ -notin 10,13 }
-    $ReleaseNotesNewCompare = [text.encoding]::UTF8.GetBytes($newReleaseNotes) | Where-Object { $_ -notin 10,13 }
-    if (-not $ReleaseNotes -or (Compare-Object $ReleaseNotesCompare $ReleaseNotesNewCompare)) {
-        #BUG: Do not use update-modulemanifest because https://github.com/PowerShell/PowerShellGetv2/issues/294
-        BuildHelpers\Update-Metadata -Path $ModuleOutManifest -Property ReleaseNotes -Value $newReleaseNotes.Trim()
-    }
+    Set-PressReleaseNotes -Path $ModuleOutManifest -Content $newReleaseNotes
 }
 
 #FIXME: Implement non-press version
@@ -169,7 +159,6 @@ Task Press.CopyModuleFiles @{
         $buildItems = Get-ChildItem -File -Recurse $PressSetting.Build.ModuleOutDir
         if ($buildItems) { $buildItems } else { 'EmptyBuildOutputFolder' }
     }
-    #(Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
     Jobs    = {
         Remove-BuildItem $PressSetting.Build.ModuleOutDir
 
