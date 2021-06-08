@@ -86,8 +86,14 @@ Task Press.Test.Pester @{
     Jobs    = {
         $TestPressPesterParams = @{
             InJob      = $true
-            Path       = $PressSetting.General.ProjectRoot
-            OutputPath = $PressSetting.Build.OutDir
+        }
+
+        if ($PressSetting.Test.Configuration) {
+            $TestPressPesterParams.Configuration = [Hashtable]$PressSetting.Test.Configuration
+        } else {
+            $TestPressPesterParams.Path = $PressSetting.General.ProjectRoot
+            $TestPressPesterParams.OutputPath = $PressSetting.Build.OutDir
+            $TestPressPesterParams.ExcludePath = $PressSetting.Test.ExcludePath
         }
 
         $pesterResult = Test-PressPester @TestPressPesterParams
@@ -108,10 +114,17 @@ Task Press.Test.Pester.WindowsPowershell @{
     Jobs    = {
         $TestPressPesterParams = @{
             InJob                = $true
-            Path                 = $PressSetting.General.ProjectRoot
-            OutputPath           = $PressSetting.Build.OutDir
             UseWindowsPowershell = $true
         }
+
+        if ($PressSetting.Test.Configuration) {
+            $TestPressPesterParams.Configuration = [Hashtable]$PressSetting.Test.Configuration
+        } else {
+            $TestPressPesterParams.Path = $PressSetting.General.ProjectRoot
+            $TestPressPesterParams.OutputPath = $PressSetting.Build.OutDir
+            $TestPressPesterParams.ExcludePath = $PressSetting.Test.ExcludePath
+        }
+
         $pesterResult = Test-PressPester @TestPressPesterParams
 
         Test-PressPester @TestPressPesterParams
