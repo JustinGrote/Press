@@ -2,12 +2,16 @@
 
 Describe 'Test-Pester' {
     It 'Runs SimpleModule Test' {
-        #FIXME: TestDrive doesn't resolve right within the test as a path, probably because of nested Pester
-        Set-ItResult -Skipped -Because 'BROKEN: $testdrive does not resolve correctly'
-        New-Item -ItemType Directory -Path $testDrive/SMTest -ErrorAction SilentlyContinue
-        $testResults = Test-Pester -Quiet -Path (Resolve-Path $Mocks/SimpleModule) -OutputPath $testDrive/SMTest
-        $testResults.Result | Should -Be 'Passed'
-        $testResults.PSVersion | Should -BeGreaterThan '6.0'
+        #TestDrive Doesn't work due to nested pester so we set up our own temp folder
+        $tempPath = Join-Path ([io.path]::GetTempPath()) (New-Guid)
+        New-Item $tempPath -ItemType Directory
+        try {
+            $testResults = Test-Pester -Quiet -Path (Resolve-Path $Mocks/SimpleModule) -OutputPath $tempPath
+            $testResults.Result | Should -Be 'Passed'
+            $testResults.PSVersion | Should -BeGreaterThan '6.0'
+        } catch { throw } finally {
+            Remove-Item $tempPath -Recurse -Force
+        }
     }
 
     It 'Runs SimpleModule Test as Job' {

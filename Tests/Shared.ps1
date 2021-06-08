@@ -5,11 +5,8 @@ BeforeAll {
     Write-Verbose 'Loading Module to Test'
     #TODO: Remove Press Hardcoding
     Get-Module Press | Remove-Module -Verbose
-    Import-Module $PSScriptRoot/../Source/Press.psm1 -Force -Global 4>$null
+    Import-Module $PSScriptRoot/../Source/Press.psm1 -Force 4>$null
     function JsonMock ($Path) {
         Get-Content -Raw (Join-Path $SCRIPT:Mocks $Path) | ConvertFrom-Json
     }
-}
-AfterAll {
-    Import-Module $PSScriptRoot/../Source/Press.psd1 -Force -Global 4>$null
 }
