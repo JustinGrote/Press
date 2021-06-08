@@ -25,7 +25,7 @@ function BootstrapModule {
     )
     $vEnvDir = New-Item -ItemType Directory -Force -Path $Path
 
-    $env:PSModulePath = $vEnvDir, $env:PSModulePath -join [io.path]::PathSeparator
+    $env:PSModulePath = ($vEnvDir, $env:PSModulePath).Where{ $_ } -join [io.path]::PathSeparator
 
     #This is done for performance. If the module is found loaded it won't try to search filesystem
     $existingModule = (Get-Module -FullyQualifiedName $moduleSpecification -ErrorAction SilentlyContinue)

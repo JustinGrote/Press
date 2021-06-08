@@ -206,19 +206,16 @@ Task Press.Package.Zip @{
 Task Press.Package.Nuget @{
     Inputs  = {
         Get-ChildItem -File -Recurse $PressSetting.Build.ModuleOutDir
-        Get-ChildItem -File -Recurse "$($PressSetting.Build.OutDir)\.gitversion"
-        #Get-Item (Join-Path $PressSetting.BuildEnvironment.BuildOutput $ProjectName)
+        "$($PressSetting.Build.OutDir)\.gitversion"
     }
     Outputs = {
-        # [String]$ZipFileName = $PressSetting.BuildEnvironment.ProjectName + '.' + $SCRIPT:GitVersionInfo.NugetVersionV2 + '.zip'
-        # [String](Join-Path $PressSetting.BuildEnvironment.BuildOutput $ZipFileName)
         $nugetPackageName = $PressSetting.General.ModuleName + '.' + (Get-Content -Raw "$($PressSetting.Build.OutDir)\.gitversion" | ConvertFrom-Json).NugetVersionV2 + '.nupkg'
-
         "$($PressSetting.Build.OutDir)\$nugetPackageName"
     }
     Jobs    = {
         Remove-Item "$(Split-Path $Outputs)\*.nupkg"
-        New-PressNugetPackage @commonParams -Path $PressSetting.Build.ModuleOutDir -Destination $PressSetting.Build.OutDir
+        $moduleOutManifest = (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1")
+        $packageName = New-PressNugetPackage @commonParams -Path $moduleOutManifest -Destination $PressSetting.Build.OutDir
     }
 }
 

@@ -101,7 +101,8 @@ function Get-Version {
         if ($GitVersionInfo.NuGetPreReleaseTagV2 -match '[-.]') {
             Write-Verbose 'Detected invalid characters for Powershell Gallery Prerelease Tag. Fixing it up.'
             $GitVersionInfo.NuGetPreReleaseTagV2 = $GitVersionInfo.NuGetPreReleaseTagV2 -replace '[\-\.]',''
-            $GitVersionInfo.NuGetVersionV2 = $GitVersionInfo.MajorMinorPatch,$GitVersionInfo.NuGetPreReleaseTagV2 -join '-'
+            $GitVersionInfo.NuGetVersionV2 = $($GitVersionInfo.MajorMinorPatch,$GitVersionInfo.NuGetPreReleaseTagV2).
+                Where($PSItem) -join '-'
         }
 
         $GitVersionResult = $GitVersionInfo |
