@@ -110,7 +110,7 @@ Task Press.Test.Pester.WindowsPowershell @{
         $pscommand -and -not ($requiredVersion -ge '6.0.0')
     }
     Inputs  = { [String[]](Get-ChildItem -File -Recurse $PressSetting.General.SrcRootDir) }
-    Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
+    Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results-WinPS.xml' }
     Jobs    = {
         $TestPressPesterParams = @{
             InJob                = $true
