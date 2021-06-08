@@ -98,7 +98,7 @@ function Test-Pester {
 
         if ($UseWindowsPowershell) {
             try {
-                Get-Command powershell.exe -ErrorAction stop
+                Get-Command powershell.exe -ErrorAction stop | Out-Null
             } catch {
                 Write-Error [NotSupportedException]'Test-Pester: -UseWindowsPowershell was specified but Powershell 5.1 is not available on this system.'
                 return
