@@ -150,7 +150,7 @@ jobs:
           path: BuildOutput/${{ github.event.repository.name }}
 
       #TODO: Remove redundancy when https://github.com/actions/runner/issues/444 is implemented
-      - name: 🧪 Test Powershell 7+
+      - name: 🧪 Test
         shell: pwsh
         run: |
           if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
@@ -159,18 +159,6 @@ jobs:
             $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
           }
 
-          . ./build.ps1 Test
-
-      #Meta: We don't test on 5.1 for using the module for Press
-      - if: runner.os == 'Windows' && github.repository	!= 'JustinGrote/Press'
-        name: 🧪 Test Windows Powershell
-        shell: powershell
-        run: |
-          if ('${{secrets.ACTIONS_STEP_DEBUG}}') {$verbosePreference = 'continue'}
-          #Press Meta
-          if ('${{ github.event.repository.name }}' -eq 'Press') {
-            $GLOBAL:PressModulePath = Resolve-Path ./BuildOutput/Press/Press.psd1
-          }
           . ./build.ps1 Test
 
   deployPrerelease:

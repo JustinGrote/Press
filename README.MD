@@ -56,3 +56,6 @@ Press is a rewrite of PowerCD with some modern decisions:
 1. Support a Github development workflow via Github Pull Requests/Features and vscode
 1. Embrace devmoji but still support conventional commits
 1. Expand to github releases, changelog support, artifacts, etc.
+
+## Smart Actions
+1. Pester will be run against both Powershell 7 and Windows Powershell in isolated jobs unless the module manifest `PowershellVersion` is greater than or equal to 6.0.0.

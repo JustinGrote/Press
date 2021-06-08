@@ -14,6 +14,11 @@ Task CopyGitVersionAndTasks -After Press.CopyModuleFiles {
     Copy-Item $includeFiles -Destination $($PressSetting.Build.ModuleOutDir)
 }
 
+# We want to exclude the mock tests from being included in the general testing process
+Task ExcludeMockTests -Before Press.Test.Pester {
+    $PressSetting.Test.ExcludePath = [String[]](Get-ChildItem -File -Recurse $PSScriptRoot/Tests/Mocks -Include '*.Tests.ps1')
+}
+
 Task CopyRequiredModules -After Press.CopyModuleFiles {
     $PressConfigDir = New-Item -ItemType Directory "$($PressSetting.Build.ModuleOutDir)/Config" -Force
     Copy-Item "$($PressSetting.General.SrcRootDir)/Config/RequiredModules.psd1" $PressConfigDir
