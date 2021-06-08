@@ -11,8 +11,9 @@ Describe 'Test-Pester' {
             $testResults.PSVersion | Should -BeGreaterThan '6.0'
         } catch {
             $PSItem |
-                Format-List |
-                Write-Host -Fore Yellow
+                Format-List -Force |
+                Out-String |
+                Write-Host
             throw
         } finally {
             Remove-Item $tempPath -Recurse -Force
