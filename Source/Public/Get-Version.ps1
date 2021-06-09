@@ -101,8 +101,7 @@ function Get-Version {
         if ($GitVersionInfo.NuGetPreReleaseTagV2 -match '[-.]') {
             Write-Verbose 'Detected invalid characters for Powershell Gallery Prerelease Tag. Fixing it up.'
             $GitVersionInfo.NuGetPreReleaseTagV2 = $GitVersionInfo.NuGetPreReleaseTagV2 -replace '[\-\.]',''
-            $GitVersionInfo.NuGetVersionV2 = $($GitVersionInfo.MajorMinorPatch,$GitVersionInfo.NuGetPreReleaseTagV2).
-                Where($PSItem) -join '-'
+            $GitVersionInfo.NuGetVersionV2 = ($GitVersionInfo.MajorMinorPatch,$GitVersionInfo.NuGetPreReleaseTagV2).Where{$PSItem} -join '-'
         }
 
         $GitVersionResult = $GitVersionInfo |
@@ -152,4 +151,5 @@ function Get-Version {
     # if (-not (Test-Path -pathtype Container $BuildReleasePath)) {New-Item -type Directory $BuildReleasePath | out-null}
     # $SCRIPT:BuildReleaseManifest = Join-Path $BuildReleasePath (split-path $env:BHPSModuleManifest -leaf)
     # write-build Green "Task $($task.name)` - Using Release Path: $BuildReleasePath"
+}   # write-build Green "Task $($task.name)` - Using Release Path: $BuildReleasePath"
 }
