@@ -1,70 +1,118 @@
+using namespace Microsoft.PowerShell.Commands
 function New-NugetPackage {
+    <#
+.SYNOPSIS
+Creates a Nuget Package from a Powershell Module
+.OUTPUTS
+System.String. The path to the generated nuget package file
+#>
     [CmdletBinding(SupportsShouldProcess)]
     param (
-        #Path to the module to build
+        #Path to the module manifest to build
         [Parameter(Mandatory)][String]$Path,
         #Where to output the new module package. Specify a folder
-        [Parameter(Mandatory)][String]$Destination
+        [Parameter(Mandatory)][String]$Destination,
+        #Whether the license must be accepted to use this package
+        [Switch]$RequireLicenseAcceptance
     )
+    $ErrorActionPreference = 'Stop'
 
-    $ModuleManifest = Get-Item $Path/*.psd1 | Where-Object { (Get-Content -Raw $PSItem) -match "ModuleVersion\s+?=\s+?\'[\d\.]+?\'" } | Select-Object -First 1
-    if (-not $ModuleManifest) { throw "No module manifest found in $Path. Please ensure a powershell module is present in this directory." }
-    $ModuleName = $ModuleManifest.basename
+    $ModuleName = (Get-Item $Path).basename
+    $ModuleMetaData = Import-PowerShellDataFile $Path
+    $ModuleDir = Split-Path $Path
 
-    #TODO: Get this to work with older packagemanagement
-    # $ModuleMetadata = Import-PowerShellDataFile $ModuleManifest
+    #Fast Method but skips some metadata. Doesn't matter for non-powershell gallery publishes
+    #Call private method in PSGetv2
+    #Also replicates and simplifies some logic from https://github1s.com/PowerShell/PowerShellGetv2/src/PowerShellGet/private/functions/Publish-PSArtifactUtility.ps1
+    if ($PSCmdlet.ShouldProcess($Destination, "Build Nuget Package for $ModuleName")) {
+        $psGetv2 = Import-Module PowershellGet -PassThru -MaximumVersion 2.99.99 -MinimumVersion 2.2.5
+        $newNuSpecFileParams = @{
+            OutputPath  = $ModuleDir
+            Id          = $ModuleName
+            Version     = ($ModuleMetaData.ModuleVersion, $ModuleMetaData.PrivateData.PSData.Prerelease | Join-String -Separator '-')
+            Description = $ModuleMetaData.Description
+            Authors     = $ModuleMetaData.Author
+        }
 
-    # #Use some PowershellGet private methods to create a nuspec file and create a nupkg. This is much faster than the "slow" method referenced below
-    # $NewNuSpecFileParams = @{
-    #     OutputPath = $Path
-    #     Id = $ModuleName
-    #     Version = ($ModuleMetaData.ModuleVersion,$ModuleMetaData.PrivateData.PSData.Prerelease -join '-')
-    #     Description = $ModuleMetaData.Description
-    #     Authors = $ModuleMetaData.Author
-    # }
+        $PSData = $ModuleMetaData.PrivateData.PSData
+        $metadata = @{
+            Owners                   = $PSData.CompanyName
+            Files                    = $ModuleMetaData.FileList
+            LicenseUrl               = $PSData.LicenseUrl
+            ProjectUrl               = $PSData.ProjectUrl
+            IconUrl                  = $PSData.IconUrl
+            ReleaseNotes             = $PSData.ReleaseNotes
+            Tags                     = $PSData.Tags
+            RequireLicenseAcceptance = $PSData.RequireLicenseAcceptance
+        }
 
-    # #Fast Method but skips some metadata. Doesn't matter for non-powershell gallery publishes
-    # #TODO: Add all the metadata from the publish process
-    # $NuSpecPath = & (Get-Module PowershellGet) New-NuSpecFile @NewNuSpecFileParams
-    # #$DotNetCommandPath = & (Get-Module PowershellGet) {$DotnetCommandPath}
-    # #$NugetExePath = & (Get-Module PowershellGet) {$NugetExePath}
-    # $NugetExePath = (command nuget -All -erroraction stop | where name -match 'nuget(.exe)?$').Source
-    # $NewNugetPackageParams = @{
-    #     NuSpecPath = $NuSpecPath
-    #     NuGetPackageRoot = $Destination
-    # }
+        $metadata.Tags += $ModuleMetaData.FunctionsToExport.foreach{
+            if ($_ -ne '*') { "PSCommand_$PSItem" }
+        }
+        $metadata.Tags += $ModuleMetaData.CmdletsToExport.foreach{
+            if ($_ -ne '*') { "PSCmdlet_$PSItem" }
+        }
+        $metadata.Tags += $ModuleMetaData.DscResourcesToExport.foreach{
+            if ($_ -ne '*') { "DscResource_$PSItem" }
+        }
 
-    # if ($DotNetCommandPath) {
-    #     $NewNugetPackageParams.UseDotNetCli = $true
-    # } elseif ($NugetExePath) {
-    #     $NewNugetPackageParams.NugetExePath = $NuGetExePath
-    # }else {
-    #     throw "Neither nuget or dotnet was detected by PowershellGet. Please check you have one or the other installed."
-    # }
-
-    # $nuGetPackagePath = & (Get-Module PowershellGet) New-NugetPackage @NewNugetPackageParams
-    # write-verbose "Created NuGet Package at $nuGetPackagePath"
-    # #Slow Method, maybe fallback to this
-    # #Creates a temporary repository and registers it, uses publish-module which results in a nuget package
-
-    try {
-        $SCRIPT:tempRepositoryName = "$ModuleName-build-$(Get-Date -format 'yyyyMMdd-hhmmss')"
-        Unregister-PSRepository -Name $tempRepositoryName -ErrorAction SilentlyContinue -Verbose:$false *>$null
-        if ($PSCmdlet.ShouldProcess($Path, "Publish Nuget Package to $Destination")) {
-            Register-PSRepository -Name $tempRepositoryName -SourceLocation ([String]$Destination) -Verbose:$false *>$null
-            If (Get-Item -ErrorAction SilentlyContinue (Join-Path $Path "$ModuleName*.nupkg")) {
-                Write-Debug Green "Nuget Package for $ModuleName already generated. Skipping. Delete the package to retry"
-            } else {
-                $CurrentProgressPreference = $GLOBAL:ProgressPreference
-                $GLOBAL:ProgressPreference = 'SilentlyContinue'
-                #TODO: Allow requiredmodules references in nuget packages
-                Publish-Module -Repository $tempRepositoryName -Path $Path -Force -Verbose:$false
-                $GLOBAL:ProgressPreference = $CurrentProgressPreference
+        $metadata.Dependencies = $ModuleMetaData.RequiredModules.foreach{
+            $spec = [ModuleSpecification]::new($PSItem)
+            [PSCustomObject]@{
+                id      = $spec.Name
+                version = ConvertTo-NugetVersion $Spec
             }
         }
-    } catch { Write-Error $PSItem }
-    finally {
-        Unregister-PSRepository $tempRepositoryName *>$null
-        if ($CurrentProgressPreference) {$GLOBAL:ProgressPreference = $CurrentProgressPreference}
+
+        $metadata.
+        GetEnumerator().
+        where{
+            $null -ne $PSItem.Value
+        }.
+        foreach{
+            $newNuSpecFileParams[$PSItem.Name] = $PSItem.Value
+        }
+
+        $NuSpecPath = & ($psGetv2) New-NuSpecFile @newNuSpecFileParams
+
+        $newNugetPackageParams = @{
+            UseDotnetCli     = $true
+            NuSpecPath       = $NuSpecPath
+            NuGetPackageRoot = Split-Path $Path
+            OutputPath       = $Destination
+        }
+        try {
+            $nuGetPackagePath = & ($PSGetv2) New-NugetPackage @newNugetPackageParams
+            Write-Verbose "Created NuGet Package at $nuGetPackagePath"
+            return $nuGetPackagePath
+        } catch { throw } finally {
+            Remove-Item $NuSpecPath
+        }
+    }
+}
+
+#Adapted from Publish-PSArtifactUtility
+function ConvertTo-NugetVersion {
+
+    param(
+        [ModuleSpecification]$spec
+    )
+
+    switch ($true) {
+        $spec.RequiredVersion {
+            '[{0}]' -f $spec.RequiredVersion
+            break
+        }
+        ($spec.MinimumVersion -and $spec.MaximumVersion) {
+            '[{0},{1}]' -f $spec.RequiredVersion, $spec.MaximumVersion
+            break
+        }
+        $spec.MaximumVersion {
+            '(,{0}]' -f $spec.MaximumVersion
+            break
+        }
+        $spec.MinimumVersion {
+            $spec.MinimumVersion
+        }
     }
 }

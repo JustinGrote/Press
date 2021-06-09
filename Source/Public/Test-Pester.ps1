@@ -78,7 +78,8 @@ function Test-Pester {
                     (Test-Path $winPSUserModPath) -and
                     $ENV:PSModulePath.split([IO.Path]::PathSeparator) -notcontains $(Resolve-Path $winPSUserModPath)
                 ) {
-                    $ENV:PSModulePath = $(Resolve-Path $winPSUserModPath), $ENV:PSModulePath -join [IO.Path]::PathSeparator
+                    $ENV:PSModulePath = @($(Resolve-Path $winPSUserModPath), $ENV:PSModulePath).
+                        Where{ $PSItem } -join [IO.Path]::PathSeparator
                 }
 
                 #Require a modern version of Pester on 5.1
