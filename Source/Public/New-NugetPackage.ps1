@@ -26,10 +26,11 @@ System.String. The path to the generated nuget package file
     #Also replicates and simplifies some logic from https://github1s.com/PowerShell/PowerShellGetv2/src/PowerShellGet/private/functions/Publish-PSArtifactUtility.ps1
     if ($PSCmdlet.ShouldProcess($Destination, "Build Nuget Package for $ModuleName")) {
         $psGetv2 = Import-Module PowershellGet -PassThru -MaximumVersion 2.99.99 -MinimumVersion 2.2.5
+        $version = @($ModuleMetaData.ModuleVersion, $ModuleMetaData.PrivateData.PSData.Prerelease) | Where-Object { $_ } | Join-String -Separator '-'
         $newNuSpecFileParams = @{
             OutputPath  = $ModuleDir
             Id          = $ModuleName
-            Version     = ($ModuleMetaData.ModuleVersion, $ModuleMetaData.PrivateData.PSData.Prerelease | Join-String -Separator '-')
+            Version     = $version
             Description = $ModuleMetaData.Description
             Authors     = $ModuleMetaData.Author
         }
