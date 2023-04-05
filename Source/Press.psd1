@@ -55,7 +55,8 @@
         @{
             ModuleName    = 'PowerConfig'
             RequiredVersion = '0.1.6'
-        }
+        },
+        'ModuleFast'
     )
 
     # Assemblies that must be loaded prior to importing this module

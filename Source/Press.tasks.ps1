@@ -5,21 +5,9 @@ $commonParams = @{
 }
 
 Enter-Build {
-    #TODO: Make this faster by not relying on PSGetv2
-    #TODO: Make this a separate task and have incremental build support
-    $RequireModuleScript = try {
-        Get-InstalledScript 'Install-RequiredModule' -ErrorAction Stop
-    } catch {
-        Install-Script -Force -AcceptLicense Install-RequiredModule -PassThru -ErrorAction Stop
-    }
-    #TODO: Move this to settings
-
-    $ProgressPreference = 'SilentlyContinue'
-
-    #Install Press Prererquisites
-    $InstallRequiredModuleScript = Join-Path $RequireModuleScript.InstalledLocation 'Install-RequiredModule.ps1'
-    $PressRequiredModuleManifest = "$PSScriptRoot\Config\RequiredModules.psd1"
-    $ImportedModules = . $InstallRequiredModuleScript -RequiredModulesFile $PressRequiredModuleManifest -Import -ErrorAction Stop -WarningAction SilentlyContinue -Confirm:$false
+    $PressRequiredModuleManifest = Import-PowerShellDataFile "$PSScriptRoot\Config\RequiredModules.psd1"
+    #TODO: Abstract this to work with PSGet as well
+    Install-ModuleFast -ModulesToInstall $PressRequiredModuleManifest -Confirm:$false
 
     $SCRIPT:PressSetting = Get-PressSetting -ConfigBase $BuildRoot
 
@@ -85,7 +73,7 @@ Task Press.Test.Pester @{
     Outputs = { Join-Path $PressSetting.Build.OutDir 'TEST-Results.xml' }
     Jobs    = {
         $TestPressPesterParams = @{
-            InJob      = $true
+            InJob = $true
         }
 
         if ($PressSetting.Test.Configuration) {
@@ -225,8 +213,8 @@ Task Press.UpdateGitHubRelease {
     }
     $VerbosePreference = 'continue'
     $ModuleOutManifest = (Get-Item "$($PressSetting.Build.ModuleOutDir)\*.psd1")
-    [String[]]$ArtifactPaths = (Get-Item "$($PressSetting.Build.OutDir)\*.zip","$($PressSetting.Build.OutDir)\*.nupkg")
-    $Owner,$Repository = $ENV:GITHUB_REPOSITORY -split '/'
+    [String[]]$ArtifactPaths = (Get-Item "$($PressSetting.Build.OutDir)\*.zip", "$($PressSetting.Build.OutDir)\*.nupkg")
+    $Owner, $Repository = $ENV:GITHUB_REPOSITORY -split '/'
     $Manifest = Import-PowerShellDataFile -Path $ModuleOutManifest
     $updateGHRParams = @{
         Owner        = $Owner
@@ -241,9 +229,9 @@ Task Press.UpdateGitHubRelease {
 
 #region MetaTasks
 Task Press.Build @(
-    'Press.Version'
+    # 'Press.Version'
     'Press.CopyModuleFiles'
-    'Press.SetModuleVersion'
+    # 'Press.SetModuleVersion'
     'Press.UpdatePublicFunctions'
     'Press.SetReleaseNotes'
 )
@@ -259,7 +247,7 @@ task Press.Test @(
 )
 Task Press.Default @(
     'Press.Build'
-    'Press.Test'
+    # 'Press.Test'
 )
 #endregion MetaTasks
 

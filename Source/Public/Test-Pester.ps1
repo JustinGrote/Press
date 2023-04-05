@@ -70,6 +70,9 @@ function Test-Pester {
     $TestResults = if ($InJob) {
         $StartJobParams = @{
             ScriptBlock = {
+                param(
+                    [Switch]$UseWindowsPowershell
+                )
                 #Workaround for PSIC Bug
                 #Reference: https://github.com/PowerShell/vscode-powershell/issues/3399
                 $winPSUserModPath = "$HOME/Documents/WindowsPowershell/Modules"
@@ -79,7 +82,18 @@ function Test-Pester {
                     $ENV:PSModulePath.split([IO.Path]::PathSeparator) -notcontains $(Resolve-Path $winPSUserModPath)
                 ) {
                     $ENV:PSModulePath = @($(Resolve-Path $winPSUserModPath), $ENV:PSModulePath).
-                        Where{ $PSItem } -join [IO.Path]::PathSeparator
+                    Where{ $PSItem } -join [IO.Path]::PathSeparator
+                }
+
+                #Add the PS7 module path
+                #TODO: Load the specific module dependencies by version
+                if ($UseWindowsPowershell) {
+                    [string]$CurrentUserModulePath = if ($IsWindows -or $PSEdition -eq 'Desktop') {
+                        "$HOME\Documents\PowerShell\Modules"
+                    } else {
+                        "$HOME/.local/share/powershell/Modules"
+                    }
+                    $env:PSModulePath = @($CurrentUserModulePath, $env:PSModulePath) -join [IO.Path]::PathSeparator
                 }
 
                 #Require a modern version of Pester on 5.1
@@ -104,6 +118,8 @@ function Test-Pester {
                 Write-Error [NotSupportedException]'Test-Pester: -UseWindowsPowershell was specified but Powershell 5.1 is not available on this system.'
                 return
             }
+
+            $StartJobParams.ArgumentList = @($true)
             $StartJobParams.PSVersion = '5.1'
         }
 
